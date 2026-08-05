@@ -1,0 +1,708 @@
+:root {
+  color: #111111;
+  background: #ffffff;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.signup-page {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 22% 18%, rgba(0, 0, 0, 0.035), transparent 28%),
+    linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
+}
+
+.home-page {
+  min-height: 100vh;
+  background: #ffffff;
+}
+
+.home-main {
+  display: grid;
+  min-height: calc(100vh - 76px);
+  place-items: center;
+  padding: 48px 24px;
+}
+
+.home-intro {
+  width: min(100%, 760px);
+  text-align: center;
+}
+
+.home-intro h1 {
+  margin: 0;
+  color: #050505;
+  font-size: clamp(40px, 5vw, 64px);
+  font-weight: 900;
+  line-height: 1.08;
+}
+
+.home-intro > p:not(.eyebrow) {
+  margin: 18px auto 0;
+  color: #666666;
+  font-size: 17px;
+}
+
+.signup-link-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 160px;
+  height: 44px;
+  margin-top: 30px;
+  border-radius: 6px;
+  background: #070707;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+/* 상단 브랜드 네비게이션 */
+.site-header {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) auto minmax(150px, 1fr);
+  align-items: center;
+  min-height: 76px;
+  padding: 0 40px;
+  border-bottom: 1px solid #dedede;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.brand {
+  font-size: 32px;
+  font-weight: 900;
+  letter-spacing: 8px;
+}
+
+.main-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 38px;
+  color: #111111;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.main-nav .sale-link {
+  color: #c9491d;
+}
+
+.header-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 20px;
+}
+
+.header-actions button,
+.cart-button {
+  position: relative;
+  display: inline-grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: #090909;
+  padding: 0;
+}
+
+.cart-button span {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  display: grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border-radius: 50%;
+  background: #050505;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+/* 데스크톱 기본 레이아웃: 좌측 비주얼, 우측 가입 폼 */
+.signup-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(420px, 570px);
+  gap: clamp(28px, 5vw, 72px);
+  min-height: calc(100vh - 144px);
+  padding: 24px 58px 14px 80px;
+}
+
+/* 브랜드 소개와 제품 이미지 영역 */
+.hero-area {
+  position: relative;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  min-height: 780px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  background: #f3f0eb;
+  overflow: hidden;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.08);
+}
+
+.hero-area::before {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.58) 38%, rgba(255, 255, 255, 0.08) 100%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 48%, rgba(255, 255, 255, 0.62) 100%);
+  content: "";
+}
+
+.hero-copy {
+  position: relative;
+  z-index: 2;
+  align-self: center;
+  max-width: 600px;
+  padding: 64px 32px 40px 40px;
+}
+
+.eyebrow {
+  margin: 0 0 24px;
+  color: #535353;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 5px;
+}
+
+.eyebrow strong,
+.hero-copy h1 {
+  color: #050505;
+}
+
+.hero-copy h1 {
+  margin: 0;
+  font-size: clamp(42px, 4.2vw, 58px);
+  font-weight: 900;
+  line-height: 1.22;
+  letter-spacing: 0;
+}
+
+.hero-description {
+  margin: 28px 0 0;
+  color: #5f5f5f;
+  font-size: 18px;
+  line-height: 1.85;
+}
+
+.hero-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+  object-position: center center;
+}
+
+.benefit-bar {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  margin: 0 28px 28px;
+  padding: 22px 24px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(12px);
+}
+
+.benefit-item {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+  color: #111111;
+}
+
+.benefit-item h3,
+.benefit-item p {
+  margin: 0;
+}
+
+.benefit-item h3 {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.benefit-item p {
+  margin-top: 5px;
+  color: #6c6c6c;
+  font-size: 14px;
+}
+
+/* 회원가입 폼 카드 */
+.form-card {
+  align-self: center;
+  width: 100%;
+  max-width: 500px;
+  padding: 26px 36px 20px;
+  border: 1px solid #e6e6e6;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.13);
+}
+
+.form-heading {
+  text-align: center;
+}
+
+.form-heading h2 {
+  margin: 0;
+  font-size: 36px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.form-heading p {
+  margin: 10px 0 18px;
+  color: #7a7a7a;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.signup-form {
+  display: grid;
+  gap: 8px;
+}
+
+.field-control {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.field-label {
+  color: #171717;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.two-column,
+.verify-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.signup-form input[type="text"],
+.signup-form input[type="email"],
+.signup-form input[type="password"],
+.signup-form input[type="tel"] {
+  width: 100%;
+  height: 34px;
+  border: 1px solid #d7d7d7;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #111111;
+  padding: 0 10px;
+  font-size: 13px;
+  outline: none;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.signup-form input::placeholder {
+  color: #9a9a9a;
+}
+
+.signup-form input:focus {
+  border-color: #111111;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.08);
+}
+
+.signup-form input:read-only {
+  cursor: not-allowed;
+  background: #f5f5f5;
+  color: #777777;
+}
+
+.signup-form input.input-error {
+  border-color: #ff4b3e;
+}
+
+.signup-form input.input-error:focus {
+  border-color: #ff4b3e;
+  box-shadow: 0 0 0 3px rgba(255, 75, 62, 0.14);
+}
+
+.field-error {
+  color: #ff4b3e;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.password-field {
+  position: relative;
+}
+
+.password-input-wrap {
+  position: relative;
+  display: block;
+}
+
+.password-input-wrap input {
+  padding-right: 38px;
+}
+
+.password-input-wrap button {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: #626262;
+  padding: 0;
+  transform: translateY(-50%);
+}
+
+.verify-row {
+  grid-template-columns: minmax(0, 1fr) 148px;
+  align-items: start;
+}
+
+.verify-action {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.verify-action .field-label {
+  visibility: hidden;
+}
+
+.verify-action button,
+.login-button {
+  height: 34px;
+  min-height: 34px;
+  border: 1px solid #d7d7d7;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #111111;
+  font-size: 13px;
+  font-weight: 800;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.verify-action button:hover,
+.verify-action button:focus-visible {
+  border-color: #050505;
+  background: #050505;
+  color: #ffffff;
+}
+
+.verify-action button:disabled,
+.submit-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.form-status {
+  margin: 0;
+  color: #2f7d46;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.check-line input {
+  width: 16px;
+  height: 16px;
+  accent-color: #111111;
+}
+
+/* 약관 동의 목록 */
+.agreement-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 2px;
+  padding-top: 12px;
+  border-top: 1px solid #d9d9d9;
+}
+
+.agreement-item {
+  display: grid;
+  gap: 6px;
+}
+
+.check-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  color: #222222;
+  font-size: 13px;
+}
+
+.check-line label,
+.all-agree {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.check-line span {
+  min-width: 0;
+}
+
+.check-line button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  color: #444444;
+  padding: 0;
+}
+
+.check-line button svg {
+  transition: transform 160ms ease;
+}
+
+.chevron-open {
+  transform: rotate(180deg);
+}
+
+.all-agree {
+  font-weight: 700;
+}
+
+.agreement-detail {
+  display: grid;
+  gap: 5px;
+  padding: 10px 12px;
+  border: 1px solid #e5e5e5;
+  border-radius: 6px;
+  background: #f8f8f8;
+  color: #666666;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.agreement-detail p {
+  margin: 0;
+}
+
+.agreement-error {
+  margin: 0;
+  color: #ff4b3e;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.submit-button {
+  height: 34px;
+  margin-top: 2px;
+  border: 0;
+  border-radius: 5px;
+  background: #070707;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.login-button {
+  background: #ffffff;
+  font-weight: 500;
+}
+
+.login-button span {
+  margin-left: 6px;
+  font-weight: 900;
+  text-decoration: underline;
+}
+
+/* 하단 링크 영역 */
+.site-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 68px;
+  padding: 0 64px;
+  border-top: 1px solid #e2e2e2;
+  background: #ffffff;
+  color: #777777;
+  font-size: 14px;
+}
+
+.site-footer nav {
+  display: flex;
+  gap: 42px;
+}
+
+.site-footer p {
+  margin: 0;
+}
+
+/* 태블릿에서는 한 컬럼으로 전환 */
+@media (max-width: 1180px) {
+  .site-header {
+    grid-template-columns: auto 1fr auto;
+    padding: 0 24px;
+  }
+
+  .main-nav {
+    gap: 20px;
+  }
+
+  .signup-main {
+    grid-template-columns: 1fr;
+    padding: 28px 24px 40px;
+  }
+
+  .hero-area {
+    min-height: 620px;
+  }
+
+  .hero-image {
+    object-position: center center;
+  }
+
+  .form-card {
+    justify-self: center;
+  }
+}
+
+/* 모바일에서는 이미지와 폼이 겹치지 않도록 자연스럽게 세로 배치 */
+@media (max-width: 760px) {
+  .site-header {
+    grid-template-columns: 1fr auto;
+    gap: 16px;
+    min-height: 68px;
+  }
+
+  .brand {
+    font-size: 24px;
+    letter-spacing: 6px;
+  }
+
+  .main-nav {
+    display: none;
+  }
+
+  .header-actions {
+    gap: 12px;
+  }
+
+  .signup-main {
+    gap: 22px;
+    padding: 22px 16px 30px;
+  }
+
+  .hero-area {
+    min-height: 660px;
+  }
+
+  .hero-copy {
+    align-self: stretch;
+    padding: 34px 22px 28px;
+  }
+
+  .eyebrow {
+    font-size: 12px;
+    letter-spacing: 3px;
+  }
+
+  .hero-copy h1 {
+    font-size: 34px;
+  }
+
+  .hero-description {
+    font-size: 15px;
+  }
+
+  .hero-image {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    object-position: 58% center;
+  }
+
+  .benefit-bar {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    margin: 0 14px 14px;
+    padding: 16px;
+  }
+
+  .form-card {
+    max-width: none;
+    padding: 22px 16px 18px;
+  }
+
+  .form-heading h2 {
+    font-size: 32px;
+  }
+
+  .two-column,
+  .verify-row {
+    grid-template-columns: 1fr;
+  }
+
+  .verify-action button,
+  .login-button,
+  .submit-button {
+    min-height: 34px;
+  }
+
+  .verify-action .field-label {
+    display: none;
+  }
+
+  .site-footer {
+    display: grid;
+    gap: 14px;
+    justify-items: start;
+    padding: 20px 18px;
+  }
+
+  .site-footer nav {
+    flex-wrap: wrap;
+    gap: 14px 22px;
+  }
+}
