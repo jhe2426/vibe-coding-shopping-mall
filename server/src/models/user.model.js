@@ -6,6 +6,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: [true, "아이디는 필수입니다."],
       unique: true,
+      lowercase: true,
       trim: true,
     },
     name: {

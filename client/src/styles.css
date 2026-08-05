@@ -71,29 +71,67 @@ button {
   font-size: 17px;
 }
 
-.signup-link-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 160px;
-  height: 44px;
-  margin-top: 30px;
-  border-radius: 6px;
-  background: #070707;
-  color: #ffffff;
-  font-size: 15px;
-  font-weight: 900;
+/* 상단 브랜드 네비게이션 */
+.site-header-shell {
+  border-bottom: 1px solid #dedede;
+  background: rgba(255, 255, 255, 0.92);
 }
 
-/* 상단 브랜드 네비게이션 */
+.header-user-bar {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0;
+  padding: 0 42px;
+  border-bottom: 1px solid #e9e9e9;
+  background: #f7f7f7;
+  color: #3f3f3f;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.header-user-bar button,
+.header-user-bar a {
+  position: relative;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0 12px;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+.header-user-bar button:not(:first-child)::before,
+.header-user-bar a:not(:first-child)::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 1px;
+  height: 10px;
+  background: #8a8a8a;
+  content: "";
+  transform: translateY(-50%);
+}
+
+.header-user-bar button:last-child,
+.header-user-bar a:last-child {
+  padding-right: 0;
+}
+
+.header-user-bar button:hover,
+.header-user-bar button:focus-visible,
+.header-user-bar a:hover,
+.header-user-bar a:focus-visible {
+  text-decoration: underline;
+}
+
 .site-header {
   display: grid;
   grid-template-columns: minmax(150px, 1fr) auto minmax(150px, 1fr);
   align-items: center;
   min-height: 76px;
   padding: 0 40px;
-  border-bottom: 1px solid #dedede;
-  background: rgba(255, 255, 255, 0.92);
 }
 
 .brand {
@@ -118,11 +156,13 @@ button {
 
 .header-actions {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
-  gap: 20px;
+  gap: 16px;
 }
 
 .header-actions button,
+.header-actions a,
 .cart-button {
   position: relative;
   display: inline-grid;
@@ -449,6 +489,10 @@ button {
   line-height: 1.35;
 }
 
+.form-status-error {
+  color: #ff4b3e;
+}
+
 .check-line input {
   width: 16px;
   height: 16px;
@@ -547,6 +591,9 @@ button {
 }
 
 .login-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: #ffffff;
   font-weight: 500;
 }
@@ -555,6 +602,24 @@ button {
   margin-left: 6px;
   font-weight: 900;
   text-decoration: underline;
+}
+
+/* 로그인 폼 전용 간격 */
+.login-card {
+  max-width: 500px;
+  padding: 54px 42px;
+}
+
+.login-form {
+  gap: 16px;
+}
+
+.login-submit-button {
+  margin-top: 4px;
+}
+
+.signup-switch-button {
+  width: 100%;
 }
 
 /* 하단 링크 영역 */
@@ -581,6 +646,10 @@ button {
 
 /* 태블릿에서는 한 컬럼으로 전환 */
 @media (max-width: 1180px) {
+  .header-user-bar {
+    padding: 0 26px;
+  }
+
   .site-header {
     grid-template-columns: auto 1fr auto;
     padding: 0 24px;
@@ -610,6 +679,17 @@ button {
 
 /* 모바일에서는 이미지와 폼이 겹치지 않도록 자연스럽게 세로 배치 */
 @media (max-width: 760px) {
+  .header-user-bar {
+    min-height: 30px;
+    padding: 0 18px;
+    font-size: 11px;
+  }
+
+  .header-user-bar button,
+  .header-user-bar a {
+    padding: 0 8px;
+  }
+
   .site-header {
     grid-template-columns: 1fr auto;
     gap: 16px;
@@ -626,7 +706,7 @@ button {
   }
 
   .header-actions {
-    gap: 12px;
+    gap: 10px;
   }
 
   .signup-main {

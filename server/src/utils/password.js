@@ -6,3 +6,8 @@ const SALT_ROUNDS = 10;
 export const hashPassword = async (password) => {
   return bcrypt.hash(String(password), SALT_ROUNDS);
 };
+
+// 로그인 시 입력한 비밀번호와 DB에 저장된 bcrypt 해시가 일치하는지 확인합니다.
+export const comparePassword = async (password, hashedPassword) => {
+  return bcrypt.compare(String(password), String(hashedPassword || ""));
+};

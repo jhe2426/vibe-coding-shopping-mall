@@ -6,16 +6,13 @@ import {
   Eye,
   EyeOff,
   RotateCcw,
-  Search,
-  ShoppingBag,
   Truck,
-  UserRound,
 } from "lucide-react";
 
 import heroShoes from "../assets/signup-shoes.png";
+import SiteHeader from "../components/SiteHeader.jsx";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "/api";
-const navItems = ["MEN", "WOMEN", "RUNNING", "COLLECTION"];
 const agreementItems = [
   {
     id: "terms",
@@ -289,7 +286,7 @@ function SignupPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          userId: formData.get("email")?.toString().trim(),
+          userId: formData.get("email")?.toString().trim().toLowerCase(),
           name: formData.get("name")?.toString().trim(),
           password,
           phoneNumber: phoneValue.replace(/\D/g, ""),
@@ -604,35 +601,7 @@ function SignupPage() {
   return (
     <div className="signup-page">
       {/* 쇼핑몰 공통 상단 네비게이션 */}
-      <header className="site-header">
-        <Link className="brand" to="/" aria-label="STRIDE home">
-          STRIDE
-        </Link>
-
-        <nav className="main-nav" aria-label="primary navigation">
-          {navItems.map((item) => (
-            <Link to="/" key={item}>
-              {item}
-            </Link>
-          ))}
-          <Link className="sale-link" to="/">
-            SALE
-          </Link>
-        </nav>
-
-        <div className="header-actions" aria-label="shop actions">
-          <button type="button" aria-label="검색">
-            <Search size={25} strokeWidth={1.8} />
-          </button>
-          <button type="button" aria-label="마이페이지">
-            <UserRound size={25} strokeWidth={1.8} />
-          </button>
-          <button className="cart-button" type="button" aria-label="장바구니">
-            <ShoppingBag size={25} strokeWidth={1.8} />
-            <span>3</span>
-          </button>
-        </div>
-      </header>
+      <SiteHeader />
 
       <main className="signup-main">
         {/* 좌측 브랜드 소개와 상품 비주얼 */}
@@ -791,9 +760,9 @@ function SignupPage() {
               {isSubmitting ? "확인 중" : "가입하기"}
             </button>
 
-            <button className="login-button" type="button">
+            <Link className="login-button signup-switch-button" to="/login">
               이미 회원이신가요? <span>로그인</span>
-            </button>
+            </Link>
           </form>
         </section>
       </main>
