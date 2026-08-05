@@ -3,7 +3,7 @@ import { Link, Navigate, useNavigate } from "react-router-dom";
 import { BadgePercent, Eye, EyeOff, RotateCcw, Truck } from "lucide-react";
 
 import heroShoes from "../assets/signup-shoes.png";
-import SiteHeader from "../components/SiteHeader.jsx";
+import NavigationBar from "../components/NavigationBar.jsx";
 import { getAuthToken, saveAuthSession } from "../utils/auth-storage.js";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "/api";
@@ -154,7 +154,7 @@ function LoginPage() {
   return (
     <div className="signup-page login-page">
       {/* 쇼핑몰 공통 상단 네비게이션 */}
-      <SiteHeader />
+      <NavigationBar />
 
       <main className="signup-main">
         {/* 좌측 브랜드 소개와 상품 비주얼 */}

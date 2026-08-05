@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 
 import heroShoes from "../assets/signup-shoes.png";
-import SiteHeader from "../components/SiteHeader.jsx";
+import NavigationBar from "../components/NavigationBar.jsx";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "/api";
 const agreementItems = [
@@ -601,7 +601,7 @@ function SignupPage() {
   return (
     <div className="signup-page">
       {/* 쇼핑몰 공통 상단 네비게이션 */}
-      <SiteHeader />
+      <NavigationBar />
 
       <main className="signup-main">
         {/* 좌측 브랜드 소개와 상품 비주얼 */}

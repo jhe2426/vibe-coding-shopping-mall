@@ -31,5 +31,6 @@ pnpm-debug.log*
 # Editor and local tooling
 .vscode/
 .idea/
+.venv-image/
 *.swp
 *.swo
