@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Bell,
   ChevronDown,
@@ -8,146 +8,206 @@ import {
   Home,
   Package,
   Pencil,
+  RotateCcw,
   Search,
   Trash2,
   Users,
+  X,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
-import product01 from "../assets/home-products/product-01.png";
-import product02 from "../assets/home-products/product-02.png";
-import product03 from "../assets/home-products/product-03.png";
-import product04 from "../assets/home-products/product-04.png";
-import product05 from "../assets/home-products/product-05.png";
-import product06 from "../assets/home-products/product-06.png";
-import product07 from "../assets/home-products/product-07.png";
-import product08 from "../assets/home-products/product-08.png";
 import { clearAuthSession } from "../utils/auth-storage.js";
 
-const products = [
-  {
-    id: "SRP-BLK-250",
-    name: "슈퍼 로우 프로 - 블랙",
-    sku: "SKU SRP-BLK-250",
-    brand: "아디다스",
-    category: "스니커즈",
-    subCategory: "로우탑",
-    status: "판매중",
-    stock: 250,
-    price: "94,000원",
-    updatedAt: "2025-05-12",
-    updatedTime: "14:30",
-    image: product01,
-  },
-  {
-    id: "HBS-NVY-245",
-    name: "핸드볼 스페지알",
-    sku: "SKU HBS-NVY-245",
-    brand: "아디다스",
-    category: "스니커즈",
-    subCategory: "로우탑",
-    status: "판매중",
-    stock: 180,
-    price: "59,000원",
-    updatedAt: "2025-05-10",
-    updatedTime: "09:15",
-    image: product04,
-  },
-  {
-    id: "NB-ML408WB",
-    name: "ML408WB",
-    sku: "SKU NB-ML408WB",
-    brand: "뉴발란스",
-    category: "러닝화",
-    subCategory: "러닝",
-    status: "판매중",
-    stock: 320,
-    price: "99,000원",
-    updatedAt: "2025-05-05",
-    updatedTime: "16:45",
-    image: product03,
-  },
-  {
-    id: "NK-INI-W-255",
-    name: "우먼스 나이키 이니시에이터 NA",
-    sku: "SKU NK-INI-W-255",
-    brand: "나이키",
-    category: "러닝화",
-    subCategory: "러닝",
-    status: "판매중",
-    stock: 210,
-    price: "69,000원",
-    updatedAt: "2025-05-03",
-    updatedTime: "11:20",
-    image: product05,
-  },
-  {
-    id: "NK-TARGA-265",
-    name: "타르가 클럽",
-    sku: "SKU NK-TARGA-265",
-    brand: "휠라",
-    category: "스니커즈",
-    subCategory: "로우탑",
-    status: "품절",
-    stock: 0,
-    price: "39,000원",
-    updatedAt: "2025-05-01",
-    updatedTime: "10:05",
-    image: product02,
-  },
-  {
-    id: "NK-GAMMA-260",
-    name: "나이키 감마 포스",
-    sku: "SKU NK-GAMMA-260",
-    brand: "나이키",
-    category: "스니커즈",
-    subCategory: "로우탑",
-    status: "판매중",
-    stock: 145,
-    price: "89,000원",
-    updatedAt: "2025-04-30",
-    updatedTime: "15:40",
-    image: product06,
-  },
-  {
-    id: "NB-530-250",
-    name: "뉴발란스 530",
-    sku: "SKU NB-530-250",
-    brand: "뉴발란스",
-    category: "러닝화",
-    subCategory: "러닝",
-    status: "판매중",
-    stock: 98,
-    price: "109,000원",
-    updatedAt: "2025-04-28",
-    updatedTime: "13:25",
-    image: product07,
-  },
-  {
-    id: "VANS-OLD-BLK",
-    name: "반스 올드스쿨 - 블랙",
-    sku: "SKU VANS-OLD-BLK",
-    brand: "반스",
-    category: "스니커즈",
-    subCategory: "로우탑",
-    status: "판매중",
-    stock: 76,
-    price: "75,000원",
-    updatedAt: "2025-04-26",
-    updatedTime: "09:50",
-    image: product08,
-  },
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "/api";
+
+const categoryLabels = {
+  SNEAKERS: "스니커즈",
+  SPORTS: "스포츠",
+  SANDALS: "샌들",
+  DRESS_SHOES: "구두",
+  CASUAL: "캐주얼",
+};
+
+const saleStatus = {
+  SELLING: { label: "판매중", className: "selling" },
+  HIDDEN: { label: "비공개", className: "hidden" },
+  STOPPED: { label: "판매중지", className: "stopped" },
+};
+
+const statusFilterOptions = [
+  { value: "ALL", label: "전체 상품" },
+  { value: "SELLING", label: "판매중", dot: "green" },
+  { value: "SOLD_OUT", label: "품절", dot: "amber" },
+  { value: "HIDDEN", label: "비공개", dot: "gray" },
+  { value: "STOPPED", label: "판매중지", dot: "red" },
 ];
+
+const categoryFilterOptions = Object.entries(categoryLabels).map(([value, label]) => ({ value, label }));
+
+const formatPrice = (price) => `${Number(price || 0).toLocaleString("ko-KR")}원`;
+
+const formatDate = (value) => new Intl.DateTimeFormat("sv-SE", {
+  timeZone: "Asia/Seoul",
+}).format(new Date(value));
+
+const formatTime = (value) => new Intl.DateTimeFormat("en-GB", {
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+  timeZone: "Asia/Seoul",
+}).format(new Date(value));
 
 function AdminProductsPage() {
   const navigate = useNavigate();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isProductMenuOpen, setIsProductMenuOpen] = useState(true);
+  const [products, setProducts] = useState([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  const [productLoadError, setProductLoadError] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [brandFilter, setBrandFilter] = useState("ALL");
+  const [categoryFilter, setCategoryFilter] = useState("ALL");
+  const [productNameInput, setProductNameInput] = useState("");
+  const [productNameQuery, setProductNameQuery] = useState("");
+  const [brands, setBrands] = useState([]);
+  const [isStockModalOpen, setIsStockModalOpen] = useState(false);
+  const [isLoadingStock, setIsLoadingStock] = useState(false);
+  const [stockProduct, setStockProduct] = useState(null);
+  const [stockLoadError, setStockLoadError] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadProducts = async () => {
+      try {
+        setIsLoadingProducts(true);
+        setProductLoadError("");
+        const searchParams = new URLSearchParams();
+        if (statusFilter === "SOLD_OUT") {
+          searchParams.set("inventoryStatus", "SOLD_OUT");
+        } else if (statusFilter !== "ALL") {
+          searchParams.set("status", statusFilter);
+        }
+        if (brandFilter !== "ALL") searchParams.set("brand", brandFilter);
+        if (categoryFilter !== "ALL") searchParams.set("category", categoryFilter);
+        if (productNameQuery) searchParams.set("name", productNameQuery);
+        const queryString = searchParams.size > 0 ? `?${searchParams.toString()}` : "";
+        const response = await fetch(`${apiBaseUrl}/products${queryString}`);
+        const productList = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(productList.message || "상품 목록을 불러오지 못했습니다.");
+        }
+
+        if (isMounted) {
+          setProducts(productList);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setProductLoadError(error.message || "상품 목록을 불러오지 못했습니다.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingProducts(false);
+        }
+      }
+    };
+
+    loadProducts();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [brandFilter, categoryFilter, productNameQuery, statusFilter]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadBrands = async () => {
+      try {
+        const response = await fetch(`${apiBaseUrl}/brands`);
+        const brandList = await response.json().catch(() => []);
+
+        if (response.ok && isMounted) {
+          setBrands(brandList);
+        }
+      } catch {
+        // 상품 목록은 그대로 조회하고, 브랜드 필터 선택지만 비워둡니다.
+      }
+    };
+
+    loadBrands();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isStockModalOpen) return undefined;
+
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") {
+        setIsStockModalOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", closeOnEscape);
+
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [isStockModalOpen]);
 
   const handleLogout = () => {
     clearAuthSession();
     setIsProfileMenuOpen(false);
     navigate("/", { replace: true });
   };
+
+  const closeStockModal = () => {
+    setIsStockModalOpen(false);
+    setStockProduct(null);
+    setStockLoadError("");
+  };
+
+  const openStockModal = async (productId) => {
+    try {
+      setIsStockModalOpen(true);
+      setIsLoadingStock(true);
+      setStockProduct(null);
+      setStockLoadError("");
+
+      const response = await fetch(`${apiBaseUrl}/products/${productId}`);
+      const product = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(product.message || "재고 정보를 불러오지 못했습니다.");
+      }
+
+      setStockProduct(product);
+    } catch (error) {
+      setStockLoadError(error.message || "재고 정보를 불러오지 못했습니다.");
+    } finally {
+      setIsLoadingStock(false);
+    }
+  };
+
+  const handleBrandFilterChange = (value) => {
+    setBrandFilter(value);
+    setCategoryFilter("ALL");
+  };
+
+  const resetFilters = () => {
+    setStatusFilter("ALL");
+    setBrandFilter("ALL");
+    setCategoryFilter("ALL");
+    setProductNameInput("");
+    setProductNameQuery("");
+  };
+
+  const availableCategoryFilters = brandFilter === "ALL"
+    ? categoryFilterOptions
+    : (brands.find((brand) => brand.name === brandFilter)?.categories || [])
+      .map((category) => ({ value: category, label: categoryLabels[category] || category }));
 
   return (
     <div className="admin-page">
@@ -166,10 +226,24 @@ function AdminProductsPage() {
             <Users size={20} strokeWidth={1.9} />
             <span>회원관리</span>
           </Link>
-          <Link className="admin-nav-link is-active" to="/admin/products">
-            <Package size={20} strokeWidth={1.9} />
-            <span>상품관리</span>
-          </Link>
+          <div className="admin-nav-product-group">
+            <button
+              className="admin-nav-link is-active"
+              type="button"
+              aria-expanded={isProductMenuOpen}
+              onClick={() => setIsProductMenuOpen((isOpen) => !isOpen)}
+            >
+              <Package size={20} strokeWidth={1.9} />
+              <span>상품관리</span>
+              <ChevronDown className="admin-nav-expand-icon" size={16} strokeWidth={2} />
+            </button>
+            {isProductMenuOpen && (
+              <div className="admin-nav-submenu">
+                <Link className="is-active" to="/admin/products">상품 목록</Link>
+                <Link to="/admin/brands">브랜드 관리</Link>
+              </div>
+            )}
+          </div>
           <Link className="admin-nav-link" to="/admin">
             <ClipboardList size={20} strokeWidth={1.9} />
             <span>주문관리</span>
@@ -232,47 +306,45 @@ function AdminProductsPage() {
             <div className="admin-product-filters">
               <fieldset className="admin-status-filter">
                 <legend>판매상태</legend>
-                <button className="is-selected" type="button">
-                  전체 상품
-                </button>
-                <button type="button">
-                  <span className="status-dot green" />
-                  판매중
-                </button>
-                <button type="button">
-                  <span className="status-dot red" />
-                  품절
-                </button>
+                {statusFilterOptions.map((filter) => (
+                  <button className={statusFilter === filter.value ? "is-selected" : ""} type="button" key={filter.value} onClick={() => setStatusFilter(filter.value)}>
+                    {filter.dot && <span className={`status-dot ${filter.dot}`} />}
+                    {filter.label}
+                  </button>
+                ))}
               </fieldset>
 
               <label className="admin-filter-field">
                 <span>브랜드</span>
-                <select defaultValue="all">
-                  <option value="all">전체</option>
-                  <option value="nike">나이키</option>
-                  <option value="adidas">아디다스</option>
-                  <option value="newbalance">뉴발란스</option>
+                <select value={brandFilter} onChange={(event) => handleBrandFilterChange(event.target.value)}>
+                  <option value="ALL">전체</option>
+                  {brands.map((brand) => <option key={brand.id} value={brand.name}>{brand.name}</option>)}
                 </select>
                 <ChevronDown size={17} strokeWidth={2} />
               </label>
 
               <label className="admin-filter-field">
                 <span>카테고리</span>
-                <select defaultValue="all">
-                  <option value="all">전체</option>
-                  <option value="sneakers">스니커즈</option>
-                  <option value="running">러닝화</option>
+                <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
+                  <option value="ALL">전체</option>
+                  {availableCategoryFilters.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}
                 </select>
                 <ChevronDown size={17} strokeWidth={2} />
               </label>
 
               <div className="admin-product-search-field">
                 <label htmlFor="admin-product-name">상품명</label>
-                <div>
-                  <input id="admin-product-name" type="search" placeholder="상품명을 입력하세요" />
-                  <button type="button">검색</button>
-                </div>
+                <form onSubmit={(event) => {
+                  event.preventDefault();
+                  setProductNameQuery(productNameInput.trim());
+                }}>
+                  <input id="admin-product-name" type="search" value={productNameInput} onChange={(event) => setProductNameInput(event.target.value)} placeholder="상품명을 입력하세요" />
+                  <button type="submit">검색</button>
+                </form>
               </div>
+              <button className="admin-filter-reset-button admin-product-filter-reset" type="button" aria-label="필터 초기화" title="필터 초기화" onClick={resetFilters}>
+                <RotateCcw size={18} strokeWidth={2} />
+              </button>
             </div>
           </section>
 
@@ -284,11 +356,11 @@ function AdminProductsPage() {
                   판매중으로 변경
                 </button>
                 <button className="bulk-red" type="button">
-                  품절로 변경
+                  판매중지로 변경
                 </button>
               </div>
               <strong>
-                총 <b>456</b>개의 상품
+                총 <b>{products.length}</b>개의 상품
               </strong>
             </div>
 
@@ -311,53 +383,64 @@ function AdminProductsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {products.map((product) => (
-                    <tr key={product.id}>
-                      <td>
-                        <input type="checkbox" aria-label={`${product.name} 선택`} />
-                      </td>
-                      <td>
-                        <div className="admin-product-info">
-                          <img src={product.image} alt="" aria-hidden="true" />
-                          <div>
-                            <strong>{product.name}</strong>
-                            <span>{product.sku}</span>
-                            <small>{product.brand}</small>
+                  {isLoadingProducts && (
+                    <tr><td className="admin-products-empty" colSpan="10">상품 목록을 불러오는 중입니다.</td></tr>
+                  )}
+                  {!isLoadingProducts && productLoadError && (
+                    <tr><td className="admin-products-empty is-error" colSpan="10">{productLoadError}</td></tr>
+                  )}
+                  {!isLoadingProducts && !productLoadError && products.length === 0 && (
+                    <tr><td className="admin-products-empty" colSpan="10">등록된 상품이 없습니다.</td></tr>
+                  )}
+                  {!isLoadingProducts && !productLoadError && products.map((product) => {
+                    const stockQuantity = product.totalStockQuantity ?? product.sizes.reduce((total, size) => total + size.stockQuantity, 0);
+                    const currentStatus = product.status === "SELLING" && product.inventoryStatus === "SOLD_OUT"
+                      ? { label: "품절", className: "soldout" }
+                      : saleStatus[product.status] || saleStatus.HIDDEN;
+                    const price = product.salePrice ?? product.regularPrice;
+
+                    return (
+                      <tr key={product.id}>
+                        <td>
+                          <input type="checkbox" aria-label={`${product.name} 선택`} />
+                        </td>
+                        <td>
+                          <div className="admin-product-info">
+                            <img src={product.cardImages.defaultImage} alt="" aria-hidden="true" />
+                            <div>
+                              <strong>{product.name}</strong>
+                              <small>{product.brand}</small>
+                            </div>
                           </div>
-                        </div>
-                      </td>
-                      <td>
-                        <span>{product.category}</span>
-                        <small>{product.subCategory}</small>
-                      </td>
-                      <td>
-                        <span className={`admin-product-status ${product.status === "품절" ? "soldout" : "selling"}`}>
-                          {product.status}
-                        </span>
-                      </td>
-                      <td>{product.stock}</td>
-                      <td>{product.price}</td>
-                      <td>
-                        <span>{product.updatedAt}</span>
-                        <small>{product.updatedTime}</small>
-                      </td>
-                      <td>
-                        <button className="admin-table-icon-button" type="button" aria-label={`${product.name} 재고조회`}>
-                          <Search size={24} strokeWidth={1.9} />
-                        </button>
-                      </td>
-                      <td>
-                        <button className="admin-table-icon-button" type="button" aria-label={`${product.name} 수정`}>
-                          <Pencil size={21} strokeWidth={2} />
-                        </button>
-                      </td>
-                      <td>
-                        <button className="admin-table-icon-button" type="button" aria-label={`${product.name} 삭제`}>
-                          <Trash2 size={22} strokeWidth={2} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td><span>{categoryLabels[product.category] || product.category}</span></td>
+                        <td>
+                          <span className={`admin-product-status ${currentStatus.className}`}>{currentStatus.label}</span>
+                        </td>
+                        <td>{stockQuantity}</td>
+                        <td>{formatPrice(price)}</td>
+                        <td>
+                          <span>{formatDate(product.updatedAt)}</span>
+                          <small>{formatTime(product.updatedAt)}</small>
+                        </td>
+                        <td>
+                          <button className="admin-table-icon-button" type="button" aria-label={`${product.name} 재고조회`} onClick={() => openStockModal(product.id)}>
+                            <Search size={24} strokeWidth={1.9} />
+                          </button>
+                        </td>
+                        <td>
+                          <button className="admin-table-icon-button" type="button" aria-label={`${product.name} 수정`} onClick={() => navigate(`/admin/products/${product.id}/edit`)}>
+                            <Pencil size={21} strokeWidth={2} />
+                          </button>
+                        </td>
+                        <td>
+                          <button className="admin-table-icon-button" type="button" aria-label={`${product.name} 삭제`}>
+                            <Trash2 size={22} strokeWidth={2} />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -386,6 +469,52 @@ function AdminProductsPage() {
             </div>
           </section>
         </main>
+
+        {isStockModalOpen && (
+          <div className="admin-stock-modal-backdrop" role="presentation" onMouseDown={closeStockModal}>
+            <section
+              className="admin-stock-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="admin-stock-modal-title"
+              onMouseDown={(event) => event.stopPropagation()}
+            >
+              <div className="admin-stock-modal-heading">
+                <h2 id="admin-stock-modal-title">재고 정보</h2>
+                <button type="button" aria-label="재고 정보 닫기" onClick={closeStockModal}><X size={21} strokeWidth={2} /></button>
+              </div>
+
+              {isLoadingStock && <p className="admin-stock-modal-message">재고 정보를 불러오는 중입니다.</p>}
+              {!isLoadingStock && stockLoadError && <p className="admin-stock-modal-message is-error">{stockLoadError}</p>}
+              {!isLoadingStock && stockProduct && (
+                <>
+                  <div className="admin-stock-product-summary">
+                    <div>
+                      <img src={stockProduct.cardImages.defaultImage} alt="" aria-hidden="true" />
+                    </div>
+                    <p>
+                      <strong>{stockProduct.name}</strong>
+                      <span>{stockProduct.brand}</span>
+                    </p>
+                  </div>
+
+                  <div className="admin-stock-modal-table-wrap">
+                    <table className="admin-stock-modal-table">
+                      <thead><tr><th>사이즈 (mm)</th><th>재고 수량</th></tr></thead>
+                      <tbody>
+                        {[...stockProduct.sizes]
+                          .sort((first, second) => first.size - second.size)
+                          .map((size) => <tr key={size.size}><td>{size.size}</td><td>{size.stockQuantity}</td></tr>)}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+
+              <button className="admin-stock-modal-close-button" type="button" onClick={closeStockModal}>닫기</button>
+            </section>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -142,6 +142,7 @@ const stocks = [
 function AdminPage() {
   const navigate = useNavigate();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isProductMenuOpen, setIsProductMenuOpen] = useState(false);
 
   const handleLogout = () => {
     clearAuthSession();
@@ -166,10 +167,24 @@ function AdminPage() {
             <Users size={20} strokeWidth={1.9} />
             <span>회원관리</span>
           </Link>
-          <Link className="admin-nav-link" to="/admin/products">
-            <Package size={20} strokeWidth={1.9} />
-            <span>상품관리</span>
-          </Link>
+          <div className="admin-nav-product-group">
+            <button
+              className="admin-nav-link"
+              type="button"
+              aria-expanded={isProductMenuOpen}
+              onClick={() => setIsProductMenuOpen((isOpen) => !isOpen)}
+            >
+              <Package size={20} strokeWidth={1.9} />
+              <span>상품관리</span>
+              <ChevronDown className="admin-nav-expand-icon" size={16} strokeWidth={2} />
+            </button>
+            {isProductMenuOpen && (
+              <div className="admin-nav-submenu">
+                <Link to="/admin/products">상품 목록</Link>
+                <Link to="/admin/brands">브랜드 관리</Link>
+              </div>
+            )}
+          </div>
           <Link className="admin-nav-link" to="/admin">
             <ClipboardList size={20} strokeWidth={1.9} />
             <span>주문관리</span>

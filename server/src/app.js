@@ -3,6 +3,7 @@ import express from "express";
 import morgan from "morgan";
 
 import authRouter from "./routes/auth.routes.js";
+import brandRouter from "./routes/brand.routes.js";
 import productRouter from "./routes/product.routes.js";
 import userRouter from "./routes/user.routes.js";
 
@@ -25,6 +26,7 @@ app.get("/", (_req, res) => {
 });
 
 app.use("/api/auth", authRouter);
+app.use("/api/brands", brandRouter);
 app.use("/api/products", productRouter);
 app.use("/api/users", userRouter);
 
@@ -46,6 +48,12 @@ app.use((err, _req, res, _next) => {
   }
 
   if (err.code === 11000) {
+    if (err.keyPattern?.normalizedName) {
+      return res.status(409).json({
+        message: "이미 등록된 브랜드입니다.",
+      });
+    }
+
     if (err.keyPattern?.productId) {
       return res.status(409).json({
         message: "이미 사용 중인 상품 아이디입니다.",

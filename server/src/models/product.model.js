@@ -138,28 +138,15 @@ const productSchema = new Schema(
     },
 
     /**
-     * 상품 종류
+     * 상품 카테고리
      */
     category: {
       type: String,
       enum: {
-        values: ["SNEAKERS", "RUNNING_SHOES", "WALKING_SHOES", "SLIP_ON", "SANDALS"],
+        values: ["SNEAKERS", "SPORTS", "SANDALS", "DRESS_SHOES", "CASUAL"],
         message: "올바른 상품 카테고리가 아닙니다.",
       },
       required: [true, "상품 카테고리는 필수입니다."],
-      index: true,
-    },
-
-    /**
-     * 상품 사용 목적
-     */
-    activity: {
-      type: String,
-      enum: {
-        values: ["RUNNING", "LIFESTYLE", "WALKING", "TRAINING", "TRAIL"],
-        message: "올바른 상품 활동 유형이 아닙니다.",
-      },
-      required: [true, "상품 활동 유형은 필수입니다."],
       index: true,
     },
 
@@ -223,7 +210,7 @@ const productSchema = new Schema(
     status: {
       type: String,
       enum: {
-        values: ["SELLING", "SOLD_OUT", "HIDDEN"],
+        values: ["SELLING", "HIDDEN", "STOPPED"],
         message: "올바른 상품 판매 상태가 아닙니다.",
       },
       default: "SELLING",
@@ -250,8 +237,8 @@ const productSchema = new Schema(
 productSchema.pre("validate", function () {
   const hasSalePrice = this.salePrice !== null;
 
-  if (hasSalePrice && this.regularPrice !== undefined && this.salePrice >= this.regularPrice) {
-    throw new Error("할인 가격은 정상 가격보다 낮아야 합니다.");
+  if (hasSalePrice && this.regularPrice !== undefined && this.salePrice > this.regularPrice) {
+    throw new Error("판매 가격은 정상 가격보다 높을 수 없습니다.");
   }
 
   const hasSaleStartAt = this.saleStartAt !== null;
@@ -277,7 +264,6 @@ productSchema.index({
   brand: 1,
   targetGender: 1,
   category: 1,
-  activity: 1,
   status: 1,
 });
 
