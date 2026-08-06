@@ -2509,6 +2509,11 @@ button.admin-nav-link {
   color: #ffffff;
 }
 
+.admin-product-pagination button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
 .admin-product-pagination span {
   color: #647084;
   font-size: 13px;

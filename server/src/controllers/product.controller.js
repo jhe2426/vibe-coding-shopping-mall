@@ -72,6 +72,8 @@ const buildProductListFilter = (query) => {
   return filter;
 };
 
+const bulkChangeableStatuses = new Set(["SELLING", "STOPPED"]);
+
 // 새 상품을 생성합니다.
 export const createProduct = async (req, res, next) => {
   try {
@@ -134,6 +136,38 @@ export const updateProduct = async (req, res, next) => {
     await product.save();
 
     return res.json(serializeProductWithInventory(product));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// 선택한 상품의 판매 상태를 한 번에 변경합니다.
+export const updateProductStatuses = async (req, res, next) => {
+  try {
+    const { productIds, status } = req.body;
+
+    if (!Array.isArray(productIds) || productIds.length === 0) {
+      return res.status(400).json({
+        message: "변경할 상품을 선택해주세요.",
+      });
+    }
+
+    if (!bulkChangeableStatuses.has(status)) {
+      return res.status(400).json({
+        message: "판매중 또는 판매중지 상태만 일괄 변경할 수 있습니다.",
+      });
+    }
+
+    const uniqueProductIds = [...new Set(productIds.filter(Boolean))];
+    const result = await Product.updateMany(
+      { $or: uniqueProductIds.map(buildProductFilter) },
+      { $set: { status } },
+    );
+
+    return res.json({
+      message: `${result.modifiedCount}개 상품의 판매 상태를 변경했습니다.`,
+      modifiedCount: result.modifiedCount,
+    });
   } catch (error) {
     return next(error);
   }

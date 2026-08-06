@@ -6,6 +6,7 @@ import {
   getProduct,
   getProducts,
   updateProduct,
+  updateProductStatuses,
 } from "../controllers/product.controller.js";
 
 const router = Router();
@@ -15,6 +16,9 @@ router.post("/", createProduct);
 
 // 전체 상품 목록을 조회합니다.
 router.get("/", getProducts);
+
+// 선택 상품의 판매 상태를 일괄 변경합니다.
+router.patch("/bulk-status", updateProductStatuses);
 
 // 특정 상품을 MongoDB _id 또는 productId로 조회합니다.
 router.get("/:id", getProduct);

@@ -69,11 +69,17 @@ function AdminProductsPage() {
   const [categoryFilter, setCategoryFilter] = useState("ALL");
   const [productNameInput, setProductNameInput] = useState("");
   const [productNameQuery, setProductNameQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(7);
+  const [productRefreshKey, setProductRefreshKey] = useState(0);
+  const [selectedProductIds, setSelectedProductIds] = useState([]);
+  const [bulkStatusUpdate, setBulkStatusUpdate] = useState("");
   const [brands, setBrands] = useState([]);
   const [isStockModalOpen, setIsStockModalOpen] = useState(false);
   const [isLoadingStock, setIsLoadingStock] = useState(false);
   const [stockProduct, setStockProduct] = useState(null);
   const [stockLoadError, setStockLoadError] = useState("");
+  const [deletingProductId, setDeletingProductId] = useState("");
 
   useEffect(() => {
     let isMounted = true;
@@ -118,7 +124,7 @@ function AdminProductsPage() {
     return () => {
       isMounted = false;
     };
-  }, [brandFilter, categoryFilter, productNameQuery, statusFilter]);
+  }, [brandFilter, categoryFilter, productNameQuery, productRefreshKey, statusFilter]);
 
   useEffect(() => {
     let isMounted = true;
@@ -191,9 +197,62 @@ function AdminProductsPage() {
     }
   };
 
+  const deleteProduct = async (product) => {
+    const shouldDelete = window.confirm(`'${product.name}' 상품을 삭제할까요?`);
+
+    if (!shouldDelete) return;
+
+    try {
+      setDeletingProductId(product.id);
+      const response = await fetch(`${apiBaseUrl}/products/${product.id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        throw new Error(result.message || "상품을 삭제하지 못했습니다.");
+      }
+
+      const remainingProducts = products.filter((item) => item.id !== product.id);
+      setProducts(remainingProducts);
+      setSelectedProductIds((productIds) => productIds.filter((productId) => productId !== product.id));
+      setCurrentPage((page) => Math.min(page, Math.max(1, Math.ceil(remainingProducts.length / itemsPerPage))));
+    } catch (error) {
+      window.alert(error.message || "상품을 삭제하지 못했습니다.");
+    } finally {
+      setDeletingProductId("");
+    }
+  };
+
   const handleBrandFilterChange = (value) => {
     setBrandFilter(value);
     setCategoryFilter("ALL");
+    setCurrentPage(1);
+    setSelectedProductIds([]);
+  };
+
+  const handleStatusFilterChange = (value) => {
+    setStatusFilter(value);
+    setCurrentPage(1);
+    setSelectedProductIds([]);
+  };
+
+  const handleCategoryFilterChange = (value) => {
+    setCategoryFilter(value);
+    setCurrentPage(1);
+    setSelectedProductIds([]);
+  };
+
+  const handleProductNameSearch = () => {
+    setProductNameQuery(productNameInput.trim());
+    setCurrentPage(1);
+    setSelectedProductIds([]);
+  };
+
+  const handleItemsPerPageChange = (value) => {
+    setItemsPerPage(Number(value));
+    setCurrentPage(1);
+    setSelectedProductIds([]);
   };
 
   const resetFilters = () => {
@@ -202,12 +261,87 @@ function AdminProductsPage() {
     setCategoryFilter("ALL");
     setProductNameInput("");
     setProductNameQuery("");
+    setCurrentPage(1);
+    setSelectedProductIds([]);
   };
 
   const availableCategoryFilters = brandFilter === "ALL"
     ? categoryFilterOptions
     : (brands.find((brand) => brand.name === brandFilter)?.categories || [])
       .map((category) => ({ value: category, label: categoryLabels[category] || category }));
+
+  const totalPages = Math.max(1, Math.ceil(products.length / itemsPerPage));
+  const pageGroupStart = Math.floor((currentPage - 1) / 10) * 10 + 1;
+  const visiblePageNumbers = Array.from(
+    { length: Math.min(10, totalPages - pageGroupStart + 1) },
+    (_, index) => pageGroupStart + index,
+  );
+  const paginatedProducts = products.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage,
+  );
+  const allVisibleProductsSelected = paginatedProducts.length > 0
+    && paginatedProducts.every((product) => selectedProductIds.includes(product.id));
+  const someVisibleProductsSelected = !allVisibleProductsSelected
+    && paginatedProducts.some((product) => selectedProductIds.includes(product.id));
+
+  const toggleProductSelection = (productId) => {
+    setSelectedProductIds((productIds) => productIds.includes(productId)
+      ? productIds.filter((id) => id !== productId)
+      : [...productIds, productId]);
+  };
+
+  const toggleVisibleProductSelection = (shouldSelect) => {
+    const visibleProductIds = paginatedProducts.map((product) => product.id);
+
+    setSelectedProductIds((productIds) => {
+      const nextProductIds = new Set(productIds);
+      visibleProductIds.forEach((productId) => {
+        if (shouldSelect) nextProductIds.add(productId);
+        else nextProductIds.delete(productId);
+      });
+
+      return [...nextProductIds];
+    });
+  };
+
+  const updateSelectedProductStatuses = async (status) => {
+    if (selectedProductIds.length === 0) {
+      window.alert("변경할 상품을 선택해주세요.");
+      return;
+    }
+
+    const statusLabel = status === "SELLING" ? "판매중" : "판매중지";
+    const shouldUpdate = window.confirm(`선택한 ${selectedProductIds.length}개 상품을 ${statusLabel}으로 변경할까요?`);
+
+    if (!shouldUpdate) return;
+
+    try {
+      setBulkStatusUpdate(status);
+      const response = await fetch(`${apiBaseUrl}/products/bulk-status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productIds: selectedProductIds, status }),
+      });
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(result.message || "상품 판매 상태를 변경하지 못했습니다.");
+      }
+
+      setSelectedProductIds([]);
+      setProductRefreshKey((value) => value + 1);
+    } catch (error) {
+      window.alert(error.message || "상품 판매 상태를 변경하지 못했습니다.");
+    } finally {
+      setBulkStatusUpdate("");
+    }
+  };
+
+  const changePage = (page) => {
+    setCurrentPage(Math.min(Math.max(page, 1), totalPages));
+    setSelectedProductIds([]);
+  };
 
   return (
     <div className="admin-page">
@@ -307,7 +441,7 @@ function AdminProductsPage() {
               <fieldset className="admin-status-filter">
                 <legend>판매상태</legend>
                 {statusFilterOptions.map((filter) => (
-                  <button className={statusFilter === filter.value ? "is-selected" : ""} type="button" key={filter.value} onClick={() => setStatusFilter(filter.value)}>
+                  <button className={statusFilter === filter.value ? "is-selected" : ""} type="button" key={filter.value} onClick={() => handleStatusFilterChange(filter.value)}>
                     {filter.dot && <span className={`status-dot ${filter.dot}`} />}
                     {filter.label}
                   </button>
@@ -325,7 +459,7 @@ function AdminProductsPage() {
 
               <label className="admin-filter-field">
                 <span>카테고리</span>
-                <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
+                <select value={categoryFilter} onChange={(event) => handleCategoryFilterChange(event.target.value)}>
                   <option value="ALL">전체</option>
                   {availableCategoryFilters.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}
                 </select>
@@ -336,7 +470,7 @@ function AdminProductsPage() {
                 <label htmlFor="admin-product-name">상품명</label>
                 <form onSubmit={(event) => {
                   event.preventDefault();
-                  setProductNameQuery(productNameInput.trim());
+                  handleProductNameSearch();
                 }}>
                   <input id="admin-product-name" type="search" value={productNameInput} onChange={(event) => setProductNameInput(event.target.value)} placeholder="상품명을 입력하세요" />
                   <button type="submit">검색</button>
@@ -351,11 +485,11 @@ function AdminProductsPage() {
           <section className="admin-product-list-panel" aria-label="product list">
             <div className="admin-product-bulkbar">
               <div>
-                <span>선택한 상품 (0개)</span>
-                <button className="bulk-green" type="button">
+                <span>선택한 상품 ({selectedProductIds.length}개)</span>
+                <button className="bulk-green" type="button" disabled={selectedProductIds.length === 0 || Boolean(bulkStatusUpdate)} onClick={() => updateSelectedProductStatuses("SELLING")}>
                   판매중으로 변경
                 </button>
-                <button className="bulk-red" type="button">
+                <button className="bulk-red" type="button" disabled={selectedProductIds.length === 0 || Boolean(bulkStatusUpdate)} onClick={() => updateSelectedProductStatuses("STOPPED")}>
                   판매중지로 변경
                 </button>
               </div>
@@ -369,7 +503,15 @@ function AdminProductsPage() {
                 <thead>
                   <tr>
                     <th>
-                      <input type="checkbox" aria-label="전체 상품 선택" />
+                      <input
+                        type="checkbox"
+                        aria-label="현재 페이지 상품 전체 선택"
+                        checked={allVisibleProductsSelected}
+                        ref={(element) => {
+                          if (element) element.indeterminate = someVisibleProductsSelected;
+                        }}
+                        onChange={(event) => toggleVisibleProductSelection(event.target.checked)}
+                      />
                     </th>
                     <th>상품정보</th>
                     <th>카테고리</th>
@@ -392,7 +534,7 @@ function AdminProductsPage() {
                   {!isLoadingProducts && !productLoadError && products.length === 0 && (
                     <tr><td className="admin-products-empty" colSpan="10">등록된 상품이 없습니다.</td></tr>
                   )}
-                  {!isLoadingProducts && !productLoadError && products.map((product) => {
+                  {!isLoadingProducts && !productLoadError && paginatedProducts.map((product) => {
                     const stockQuantity = product.totalStockQuantity ?? product.sizes.reduce((total, size) => total + size.stockQuantity, 0);
                     const currentStatus = product.status === "SELLING" && product.inventoryStatus === "SOLD_OUT"
                       ? { label: "품절", className: "soldout" }
@@ -402,7 +544,12 @@ function AdminProductsPage() {
                     return (
                       <tr key={product.id}>
                         <td>
-                          <input type="checkbox" aria-label={`${product.name} 선택`} />
+                          <input
+                            type="checkbox"
+                            aria-label={`${product.name} 선택`}
+                            checked={selectedProductIds.includes(product.id)}
+                            onChange={() => toggleProductSelection(product.id)}
+                          />
                         </td>
                         <td>
                           <div className="admin-product-info">
@@ -434,7 +581,14 @@ function AdminProductsPage() {
                           </button>
                         </td>
                         <td>
-                          <button className="admin-table-icon-button" type="button" aria-label={`${product.name} 삭제`}>
+                          <button
+                            className="admin-table-icon-button"
+                            type="button"
+                            aria-label={`${product.name} 삭제`}
+                            title="삭제"
+                            disabled={deletingProductId === product.id}
+                            onClick={() => deleteProduct(product)}
+                          >
                             <Trash2 size={22} strokeWidth={2} />
                           </button>
                         </td>
@@ -446,23 +600,23 @@ function AdminProductsPage() {
             </div>
 
             <div className="admin-product-pagination">
-              <button type="button" aria-label="이전 페이지">
+              <button type="button" aria-label="이전 페이지" disabled={currentPage === 1} onClick={() => changePage(currentPage - 1)}>
                 <ChevronLeft size={18} strokeWidth={2} />
               </button>
-              {Array.from({ length: 10 }, (_, index) => index + 1).map((pageNumber) => (
-                <button className={pageNumber === 1 ? "is-current" : ""} type="button" key={pageNumber}>
+              {visiblePageNumbers.map((pageNumber) => (
+                <button className={pageNumber === currentPage ? "is-current" : ""} type="button" key={pageNumber} onClick={() => changePage(pageNumber)}>
                   {pageNumber}
                 </button>
               ))}
-              <button type="button" aria-label="다음 페이지">
+              <button type="button" aria-label="다음 페이지" disabled={currentPage === totalPages} onClick={() => changePage(currentPage + 1)}>
                 <ChevronRight size={18} strokeWidth={2} />
               </button>
 
               <label className="admin-page-size-select">
-                <select defaultValue="10">
-                  <option value="10">10개씩 보기</option>
-                  <option value="20">20개씩 보기</option>
-                  <option value="50">50개씩 보기</option>
+                <select value={itemsPerPage} onChange={(event) => handleItemsPerPageChange(event.target.value)}>
+                  <option value="7">7개씩 보기</option>
+                  <option value="14">14개씩 보기</option>
+                  <option value="21">21개씩 보기</option>
                 </select>
                 <ChevronDown size={16} strokeWidth={2} />
               </label>
