@@ -216,9 +216,23 @@ button {
   gap: 34px 16px;
 }
 
+.home-products-message {
+  grid-column: 1 / -1;
+  margin: 40px 0;
+  color: #667085;
+  font-size: 14px;
+  text-align: center;
+}
+
+.home-products-message.is-error {
+  color: #d92d20;
+}
+
 .product-card {
   display: grid;
+  grid-template-rows: auto 58px;
   min-width: 0;
+  background: #ffffff;
   gap: 12px;
 }
 
@@ -227,7 +241,7 @@ button {
   overflow: hidden;
   width: 100%;
   aspect-ratio: 1 / 1.14;
-  background: #ececec;
+  background: #ffffff;
 }
 
 .product-image {
@@ -254,27 +268,27 @@ button {
   transform: scale(0.98);
 }
 
-.product-card:hover .product-image-default {
+.product-image-wrap:hover .product-image-default {
   opacity: 0;
 }
 
-.product-card:hover .product-image-hover {
+.product-image-wrap:hover .product-image-hover {
   opacity: 1;
   transform: scale(0.98);
 }
 
 .product-like-button {
-  position: absolute;
-  top: 10px;
-  right: 10px;
   display: grid;
   width: 30px;
   height: 30px;
+  align-self: center;
+  justify-self: end;
   place-items: center;
   border: 0;
   background: transparent;
   color: #111111;
   padding: 0;
+  transform: translateX(-6px);
 }
 
 .product-like-button:hover {
@@ -297,8 +311,16 @@ button {
 
 .product-info {
   display: grid;
+  grid-template-columns: minmax(0, 1fr) 30px;
+  column-gap: 10px;
+  min-height: 58px;
+}
+
+.product-copy {
+  display: grid;
+  grid-template-rows: 18px minmax(0, 1fr);
   gap: 6px;
-  min-height: auto;
+  min-width: 0;
 }
 
 .product-info strong {
@@ -308,11 +330,15 @@ button {
 }
 
 .product-info h2 {
+  display: -webkit-box;
+  overflow: hidden;
   margin: 0;
   color: #111111;
   font-size: 14px;
   font-weight: 500;
   line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .more-products-button {
