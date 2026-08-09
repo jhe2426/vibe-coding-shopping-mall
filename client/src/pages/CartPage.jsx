@@ -277,6 +277,15 @@ function CartPage() {
       navigate("/login", { state: { from: "/cart" } });
       return;
     }
+
+    navigate("/checkout", {
+      state: {
+        checkout: {
+          items: selectedItems,
+          totalAmount: selectedTotalAmount,
+        },
+      },
+    });
   };
 
   return (
