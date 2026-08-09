@@ -4,7 +4,10 @@ import morgan from "morgan";
 
 import authRouter from "./routes/auth.routes.js";
 import brandRouter from "./routes/brand.routes.js";
+import cartRouter from "./routes/cart.routes.js";
 import productRouter from "./routes/product.routes.js";
+import productLikeRouter from "./routes/product-like.routes.js";
+import productQuestionRouter from "./routes/product-question.routes.js";
 import userRouter from "./routes/user.routes.js";
 
 const app = express();
@@ -27,6 +30,9 @@ app.get("/", (_req, res) => {
 
 app.use("/api/auth", authRouter);
 app.use("/api/brands", brandRouter);
+app.use("/api/cart", cartRouter);
+app.use("/api/likes", productLikeRouter);
+app.use("/api/products/:productId/questions", productQuestionRouter);
 app.use("/api/products", productRouter);
 app.use("/api/users", userRouter);
 

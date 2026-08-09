@@ -5,6 +5,7 @@ import { BadgePercent, Eye, EyeOff, RotateCcw, Truck } from "lucide-react";
 import heroShoes from "../assets/signup-shoes.png";
 import NavigationBar from "../components/NavigationBar.jsx";
 import { getAuthToken, saveAuthSession } from "../utils/auth-storage.js";
+import { mergeGuestCartToAccount } from "../utils/guest-cart.js";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "/api";
 const requiredFields = {
@@ -103,9 +104,11 @@ function LoginPage() {
       saveAuthSession({
         token,
       });
+      await mergeGuestCartToAccount(apiBaseUrl);
+      window.dispatchEvent(new Event("stride-cart-change"));
       loginForm.reset();
       setPasswordValue("");
-      navigate("/", { replace: true });
+      navigate("/cart", { replace: true });
     } catch {
       setFormStatus("서버와 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.");
     } finally {

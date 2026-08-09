@@ -2,8 +2,10 @@ import { Navigate, Route, Routes } from "react-router-dom";
 
 import LoginPage from "./pages/LoginPage.jsx";
 import MainPage from "./pages/MainPage.jsx";
+import ProductDetailPage from "./pages/ProductDetailPage.jsx";
 import AdminPage from "./pages/AdminPage.jsx";
 import AdminBrandManagementPage from "./pages/AdminBrandManagementPage.jsx";
+import CartPage from "./pages/CartPage.jsx";
 import AdminProductCreatePage from "./pages/AdminProductCreatePage.jsx";
 import AdminProductsPage from "./pages/AdminProductsPage.jsx";
 import SignupPage from "./pages/SignupPage.jsx";
@@ -12,6 +14,8 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<MainPage />} />
+      <Route path="/products/:id" element={<ProductDetailPage />} />
+      <Route path="/cart" element={<CartPage />} />
       <Route path="/admin" element={<AdminPage />} />
       <Route path="/admin/products" element={<AdminProductsPage />} />
       <Route path="/admin/products/new" element={<AdminProductCreatePage />} />

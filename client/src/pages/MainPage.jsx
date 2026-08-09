@@ -1,12 +1,15 @@
 import { useEffect, useState } from "react";
 import { ArrowRight, ChevronLeft, ChevronRight, Heart } from "lucide-react";
+import { Link } from "react-router-dom";
 import NavigationBar from "../components/NavigationBar.jsx";
+import SiteFooter from "../components/SiteFooter.jsx";
 import strideCampaignBanner from "../assets/home/stride-campaign-banner.png";
 import strideCampaignBanner02 from "../assets/home/stride-campaign-banner-02.png";
 import strideCampaignBanner03 from "../assets/home/stride-campaign-banner-03.png";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "/api";
 const formatPrice = (price) => `${Number(price || 0).toLocaleString("ko-KR")} 원`;
+const getProductPathId = (product) => product.productId || product.id;
 
 const heroSlides = [
   {
@@ -148,21 +151,27 @@ function MainPage() {
             {!isLoadingProducts && !productLoadError && products.length === 0 && <p className="home-products-message">등록된 상품이 없습니다.</p>}
             {!isLoadingProducts && !productLoadError && products.map((product) => (
               <article className="product-card" key={product.id}>
-                <div className="product-image-wrap">
-                  <img className="product-image product-image-default" src={product.cardImages.defaultImage} alt={product.name} />
-                  <img
-                    className="product-image product-image-hover"
-                    src={product.cardImages.hoverImage}
-                    alt=""
-                    aria-hidden="true"
-                  />
-                </div>
+                <Link className="product-card-image-link" to={`/products/${getProductPathId(product)}`}>
+                  <div className="product-image-wrap">
+                    <img className="product-image product-image-default" src={product.cardImages.defaultImage} alt={product.name} />
+                    <img
+                      className="product-image product-image-hover"
+                      src={product.cardImages.hoverImage}
+                      alt=""
+                      aria-hidden="true"
+                    />
+                  </div>
+                </Link>
                 <div className="product-info">
-                  <div className="product-copy">
+                  <Link className="product-copy product-copy-link" to={`/products/${getProductPathId(product)}`}>
                     <strong>{formatPrice(product.salePrice ?? product.regularPrice)}</strong>
                     <h2>{product.name}</h2>
-                  </div>
-                  <button className="product-like-button" type="button" aria-label={`${product.name} 찜하기`}>
+                  </Link>
+                  <button
+                    className="product-like-button"
+                    type="button"
+                    aria-label={`${product.name} 찜하기`}
+                  >
                     <Heart size={22} strokeWidth={2} />
                   </button>
                 </div>
@@ -176,7 +185,7 @@ function MainPage() {
         </section>
       </main>
 
-      <footer className="home-footer">© 2026 STRIDE. All rights reserved.</footer>
+      <SiteFooter />
     </div>
   );
 }
