@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { BadgePercent, Eye, EyeOff, RotateCcw, Truck } from "lucide-react";
 
 import heroShoes from "../assets/signup-shoes.png";
@@ -38,6 +38,9 @@ const validateEmail = (value) => {
 
 function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const redirectPath = location.state?.from || "/cart";
+  const authenticatedRedirectPath = location.state?.from || "/";
   const hasAuthToken = Boolean(getAuthToken());
   const [errors, setErrors] = useState({});
   const [passwordValue, setPasswordValue] = useState("");
@@ -45,7 +48,7 @@ function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (hasAuthToken) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={authenticatedRedirectPath} replace />;
   }
 
   // 로그인 클릭 시 이메일과 비밀번호를 서버로 보내고, 성공하면 토큰을 저장한 뒤 메인으로 이동합니다.
@@ -108,7 +111,7 @@ function LoginPage() {
       window.dispatchEvent(new Event("stride-cart-change"));
       loginForm.reset();
       setPasswordValue("");
-      navigate("/cart", { replace: true });
+      navigate(redirectPath, { replace: true });
     } catch {
       setFormStatus("서버와 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.");
     } finally {

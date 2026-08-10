@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { ArrowRight, ChevronLeft, ChevronRight, Heart } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { fetchProductLikes, getProductLikeKey, updateProductLikeStatus } from "../api/product-likes.js";
 import NavigationBar from "../components/NavigationBar.jsx";
 import SiteFooter from "../components/SiteFooter.jsx";
+import { getAuthToken } from "../utils/auth-storage.js";
 import strideCampaignBanner from "../assets/home/stride-campaign-banner.png";
 import strideCampaignBanner02 from "../assets/home/stride-campaign-banner-02.png";
 import strideCampaignBanner03 from "../assets/home/stride-campaign-banner-03.png";
@@ -36,10 +38,14 @@ const heroSlides = [
 ];
 
 function MainPage() {
+  const navigate = useNavigate();
   const [activeSlideIndex, setActiveSlideIndex] = useState(0);
   const [products, setProducts] = useState([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [productLoadError, setProductLoadError] = useState("");
+  const [likedProductIds, setLikedProductIds] = useState(() => new Set());
+  const [pendingLikeProductId, setPendingLikeProductId] = useState(null);
+  const [likeActionError, setLikeActionError] = useState("");
 
   // 메인 배너는 버튼을 누르지 않아도 일정 시간마다 자동으로 다음 이미지로 이동합니다.
   useEffect(() => {
@@ -88,6 +94,33 @@ function MainPage() {
     };
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadLikedProducts = async () => {
+      if (!getAuthToken()) {
+        if (isMounted) setLikedProductIds(new Set());
+        return;
+      }
+
+      try {
+        const likes = await fetchProductLikes(apiBaseUrl);
+
+        if (isMounted) {
+          setLikedProductIds(new Set(likes.map((like) => like.productId).filter(Boolean)));
+        }
+      } catch {
+        if (isMounted) setLikedProductIds(new Set());
+      }
+    };
+
+    loadLikedProducts();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const moveHeroSlide = (direction) => {
     setActiveSlideIndex((currentIndex) => {
       const nextIndex = currentIndex + direction;
@@ -98,6 +131,42 @@ function MainPage() {
 
       return nextIndex % heroSlides.length;
     });
+  };
+
+  const toggleProductLike = async (product) => {
+    const productId = getProductLikeKey(product);
+
+    if (!productId) return;
+
+    if (!getAuthToken()) {
+      navigate("/login", { state: { from: "/" } });
+      return;
+    }
+
+    const isLiked = likedProductIds.has(productId);
+
+    try {
+      setPendingLikeProductId(productId);
+      setLikeActionError("");
+
+      await updateProductLikeStatus(apiBaseUrl, productId, !isLiked);
+
+      setLikedProductIds((currentIds) => {
+        const nextIds = new Set(currentIds);
+
+        if (isLiked) {
+          nextIds.delete(productId);
+        } else {
+          nextIds.add(productId);
+        }
+
+        return nextIds;
+      });
+    } catch (error) {
+      setLikeActionError(error.message || "찜 상태를 변경하지 못했습니다.");
+    } finally {
+      setPendingLikeProductId(null);
+    }
   };
 
   return (
@@ -148,35 +217,44 @@ function MainPage() {
           <div className="product-grid">
             {isLoadingProducts && <p className="home-products-message">상품을 불러오는 중입니다.</p>}
             {!isLoadingProducts && productLoadError && <p className="home-products-message is-error">{productLoadError}</p>}
+            {!isLoadingProducts && !productLoadError && likeActionError && <p className="home-products-message is-error">{likeActionError}</p>}
             {!isLoadingProducts && !productLoadError && products.length === 0 && <p className="home-products-message">등록된 상품이 없습니다.</p>}
-            {!isLoadingProducts && !productLoadError && products.map((product) => (
-              <article className="product-card" key={product.id}>
-                <Link className="product-card-image-link" to={`/products/${getProductPathId(product)}`}>
-                  <div className="product-image-wrap">
-                    <img className="product-image product-image-default" src={product.cardImages.defaultImage} alt={product.name} />
-                    <img
-                      className="product-image product-image-hover"
-                      src={product.cardImages.hoverImage}
-                      alt=""
-                      aria-hidden="true"
-                    />
-                  </div>
-                </Link>
-                <div className="product-info">
-                  <Link className="product-copy product-copy-link" to={`/products/${getProductPathId(product)}`}>
-                    <strong>{formatPrice(product.salePrice ?? product.regularPrice)}</strong>
-                    <h2>{product.name}</h2>
+            {!isLoadingProducts && !productLoadError && products.map((product) => {
+              const productId = getProductLikeKey(product);
+              const isLiked = likedProductIds.has(productId);
+
+              return (
+                <article className="product-card" key={product.id}>
+                  <Link className="product-card-image-link" to={`/products/${getProductPathId(product)}`}>
+                    <div className="product-image-wrap">
+                      <img className="product-image product-image-default" src={product.cardImages.defaultImage} alt={product.name} />
+                      <img
+                        className="product-image product-image-hover"
+                        src={product.cardImages.hoverImage}
+                        alt=""
+                        aria-hidden="true"
+                      />
+                    </div>
                   </Link>
-                  <button
-                    className="product-like-button"
-                    type="button"
-                    aria-label={`${product.name} 찜하기`}
-                  >
-                    <Heart size={22} strokeWidth={2} />
-                  </button>
-                </div>
-              </article>
-            ))}
+                  <div className="product-info">
+                    <Link className="product-copy product-copy-link" to={`/products/${getProductPathId(product)}`}>
+                      <strong>{formatPrice(product.salePrice ?? product.regularPrice)}</strong>
+                      <h2>{product.name}</h2>
+                    </Link>
+                    <button
+                      className={`product-like-button ${isLiked ? "is-liked" : ""}`}
+                      type="button"
+                      aria-label={`${product.name} ${isLiked ? "찜 해제" : "찜하기"}`}
+                      aria-pressed={isLiked}
+                      disabled={pendingLikeProductId === productId}
+                      onClick={() => toggleProductLike(product)}
+                    >
+                      <Heart size={22} strokeWidth={2} />
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
           </div>
 
           <button className="more-products-button" type="button">

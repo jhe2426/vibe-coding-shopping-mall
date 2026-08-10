@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Heart, Search, ShoppingBag } from "lucide-react";
 
+import { WISHLIST_CHANGE_EVENT, fetchProductLikes } from "../api/product-likes.js";
 import { fetchMyProfile } from "../api/auth.js";
 import { AUTH_SESSION_CHANGE_EVENT, buildAuthHeaders, clearAuthSession, getAuthToken } from "../utils/auth-storage.js";
 import { getGuestCartItemCount } from "../utils/guest-cart.js";
@@ -14,6 +15,7 @@ function NavigationBar() {
   const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(getAuthToken()));
   const [currentUser, setCurrentUser] = useState(null);
   const [cartItemCount, setCartItemCount] = useState(0);
+  const [wishlistItemCount, setWishlistItemCount] = useState(0);
 
   // 저장된 JWT 토큰으로 현재 유저 정보를 조회해 관리자/일반 유저 메뉴를 구분합니다.
   useEffect(() => {
@@ -41,6 +43,23 @@ function NavigationBar() {
       }
     };
 
+    const loadWishlistItemCount = async () => {
+      if (!getAuthToken()) {
+        if (isMounted) setWishlistItemCount(0);
+        return;
+      }
+
+      try {
+        const likes = await fetchProductLikes("/api");
+
+        if (isMounted) {
+          setWishlistItemCount(likes.length);
+        }
+      } catch {
+        if (isMounted) setWishlistItemCount(0);
+      }
+    };
+
     const loadCurrentUser = async () => {
       const savedToken = getAuthToken();
 
@@ -59,6 +78,7 @@ function NavigationBar() {
           setCurrentUser(user);
         }
         loadCartItemCount();
+        loadWishlistItemCount();
       } catch {
         clearAuthSession();
 
@@ -66,6 +86,7 @@ function NavigationBar() {
           setIsLoggedIn(false);
           setCurrentUser(null);
           setCartItemCount(0);
+          setWishlistItemCount(0);
         }
       }
     };
@@ -78,14 +99,20 @@ function NavigationBar() {
       loadCartItemCount();
     };
 
+    const handleWishlistChange = () => {
+      loadWishlistItemCount();
+    };
+
     loadCurrentUser();
     window.addEventListener(AUTH_SESSION_CHANGE_EVENT, handleAuthSessionChange);
     window.addEventListener(CART_CHANGE_EVENT, handleCartChange);
+    window.addEventListener(WISHLIST_CHANGE_EVENT, handleWishlistChange);
 
     return () => {
       isMounted = false;
       window.removeEventListener(AUTH_SESSION_CHANGE_EVENT, handleAuthSessionChange);
       window.removeEventListener(CART_CHANGE_EVENT, handleCartChange);
+      window.removeEventListener(WISHLIST_CHANGE_EVENT, handleWishlistChange);
     };
   }, []);
 
@@ -95,6 +122,7 @@ function NavigationBar() {
     setIsLoggedIn(false);
     setCurrentUser(null);
     setCartItemCount(0);
+    setWishlistItemCount(0);
     navigate("/", { replace: true });
   };
 
@@ -141,9 +169,12 @@ function NavigationBar() {
             <Search size={25} strokeWidth={1.8} />
           </button>
 
-          <button type="button" aria-label="찜한 상품">
-            <Heart size={25} strokeWidth={1.8} />
-          </button>
+          {isLoggedIn && (
+            <button className="wishlist-nav-button" type="button" aria-label="찜한 상품" onClick={() => navigate("/wishlist")}>
+              <Heart size={25} strokeWidth={1.8} />
+              {wishlistItemCount > 0 && <span>{wishlistItemCount}</span>}
+            </button>
+          )}
 
           <button className="cart-button" type="button" aria-label="장바구니" onClick={() => navigate("/cart")}>
             <ShoppingBag size={25} strokeWidth={1.8} />

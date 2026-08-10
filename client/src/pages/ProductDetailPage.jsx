@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, Heart, Lock, Minus, Plus, Ruler, ShoppingBag, Star, X } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
+import { fetchProductLikes, getProductLikeKey, updateProductLikeStatus } from "../api/product-likes.js";
 import { fetchMyProfile } from "../api/auth.js";
 import NavigationBar from "../components/NavigationBar.jsx";
 import { buildAuthHeaders, getAuthToken } from "../utils/auth-storage.js";
@@ -63,6 +64,9 @@ function ProductDetailPage() {
   const [selectedQuantity, setSelectedQuantity] = useState(1);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [cartActionError, setCartActionError] = useState("");
+  const [likedProductIds, setLikedProductIds] = useState(() => new Set());
+  const [pendingLikeProductId, setPendingLikeProductId] = useState(null);
+  const [likeActionError, setLikeActionError] = useState("");
   const [isQnaFormOpen, setIsQnaFormOpen] = useState(false);
   const [qnaDraft, setQnaDraft] = useState({ title: "", content: "", isSecret: false });
   const [qnaQuestions, setQnaQuestions] = useState([]);
@@ -150,6 +154,33 @@ function ProductDetailPage() {
       .catch(() => {
         if (isMounted) setIsAdmin(false);
       });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadLikedProducts = async () => {
+      if (!getAuthToken()) {
+        if (isMounted) setLikedProductIds(new Set());
+        return;
+      }
+
+      try {
+        const likes = await fetchProductLikes(apiBaseUrl);
+
+        if (isMounted) {
+          setLikedProductIds(new Set(likes.map((like) => like.productId).filter(Boolean)));
+        }
+      } catch {
+        if (isMounted) setLikedProductIds(new Set());
+      }
+    };
+
+    loadLikedProducts();
 
     return () => {
       isMounted = false;
@@ -451,6 +482,42 @@ function ProductDetailPage() {
     }
   };
 
+  const toggleProductLike = async (targetProduct) => {
+    const productId = getProductLikeKey(targetProduct);
+
+    if (!productId) return;
+
+    if (!getAuthToken()) {
+      navigate("/login", { state: { from: `/products/${id}` } });
+      return;
+    }
+
+    const isLiked = likedProductIds.has(productId);
+
+    try {
+      setPendingLikeProductId(productId);
+      setLikeActionError("");
+
+      await updateProductLikeStatus(apiBaseUrl, productId, !isLiked);
+
+      setLikedProductIds((currentIds) => {
+        const nextIds = new Set(currentIds);
+
+        if (isLiked) {
+          nextIds.delete(productId);
+        } else {
+          nextIds.add(productId);
+        }
+
+        return nextIds;
+      });
+    } catch (error) {
+      setLikeActionError(error.message || "찜 상태를 변경하지 못했습니다.");
+    } finally {
+      setPendingLikeProductId(null);
+    }
+  };
+
   return (
     <div className="product-detail-page">
       <NavigationBar />
@@ -583,12 +650,19 @@ function ProductDetailPage() {
                     {isAddingToCart ? "담는 중" : "장바구니"}
                     <ShoppingBag size={20} strokeWidth={2.2} />
                   </button>
-                  <button className="product-wishlist-button" type="button">
-                    위시리스트
+                  <button
+                    className={`product-wishlist-button ${likedProductIds.has(getProductLikeKey(selectedProduct)) ? "is-liked" : ""}`}
+                    type="button"
+                    aria-pressed={likedProductIds.has(getProductLikeKey(selectedProduct))}
+                    disabled={pendingLikeProductId === getProductLikeKey(selectedProduct)}
+                    onClick={() => toggleProductLike(selectedProduct)}
+                  >
+                    {likedProductIds.has(getProductLikeKey(selectedProduct)) ? "찜 해제" : "위시리스트"}
                     <Heart size={25} strokeWidth={2.1} />
                   </button>
                 </div>
                 {cartActionError && <p className="product-cart-action-error" role="alert">{cartActionError}</p>}
+                {likeActionError && <p className="product-cart-action-error" role="alert">{likeActionError}</p>}
 
                 <div className="product-purchase-notes">
                   <p>주문결제 시 매장 픽업 선택 가능</p>
@@ -705,33 +779,45 @@ function ProductDetailPage() {
               <section className="product-related-section" aria-labelledby="product-related-title">
                 <h2 id="product-related-title">함께 보면 좋은 상품</h2>
                 <div className="product-related-grid">
-                  {relatedProducts.map((relatedProduct) => (
-                    <article className="product-related-card" key={getProductPathId(relatedProduct)}>
-                      <Link className="product-related-link" to={`/products/${getProductPathId(relatedProduct)}`}>
-                        <span className="product-related-image-wrap">
-                          <img
-                            className="product-related-image product-related-image-default"
-                            src={getProductImage(relatedProduct)}
-                            alt={relatedProduct.name}
-                          />
-                          <img
-                            className="product-related-image product-related-image-hover"
-                            src={getProductImage(relatedProduct, "hoverImage")}
-                            alt=""
-                            aria-hidden="true"
-                          />
-                        </span>
-                        <strong>{formatPrice(relatedProduct.salePrice ?? relatedProduct.regularPrice)}</strong>
-                        <h3>{relatedProduct.name}</h3>
-                        <p>{relatedProduct.brand}</p>
-                        <em>{Math.max(1, (relatedProduct.detailImages || []).length)}개의 다른 컬러</em>
-                        <small>New</small>
-                      </Link>
-                      <button type="button" aria-label={`${relatedProduct.name} 찜하기`}>
-                        <Heart size={27} strokeWidth={2.1} />
-                      </button>
-                    </article>
-                  ))}
+                  {relatedProducts.map((relatedProduct) => {
+                    const relatedProductId = getProductLikeKey(relatedProduct);
+                    const isRelatedProductLiked = likedProductIds.has(relatedProductId);
+
+                    return (
+                      <article className="product-related-card" key={getProductPathId(relatedProduct)}>
+                        <Link className="product-related-link" to={`/products/${getProductPathId(relatedProduct)}`}>
+                          <span className="product-related-image-wrap">
+                            <img
+                              className="product-related-image product-related-image-default"
+                              src={getProductImage(relatedProduct)}
+                              alt={relatedProduct.name}
+                            />
+                            <img
+                              className="product-related-image product-related-image-hover"
+                              src={getProductImage(relatedProduct, "hoverImage")}
+                              alt=""
+                              aria-hidden="true"
+                            />
+                          </span>
+                          <strong>{formatPrice(relatedProduct.salePrice ?? relatedProduct.regularPrice)}</strong>
+                          <h3>{relatedProduct.name}</h3>
+                          <p>{relatedProduct.brand}</p>
+                          <em>{Math.max(1, (relatedProduct.detailImages || []).length)}개의 다른 컬러</em>
+                          <small>New</small>
+                        </Link>
+                        <button
+                          className={isRelatedProductLiked ? "is-liked" : ""}
+                          type="button"
+                          aria-label={`${relatedProduct.name} ${isRelatedProductLiked ? "찜 해제" : "찜하기"}`}
+                          aria-pressed={isRelatedProductLiked}
+                          disabled={pendingLikeProductId === relatedProductId}
+                          onClick={() => toggleProductLike(relatedProduct)}
+                        >
+                          <Heart size={27} strokeWidth={2.1} />
+                        </button>
+                      </article>
+                    );
+                  })}
                 </div>
               </section>
             )}

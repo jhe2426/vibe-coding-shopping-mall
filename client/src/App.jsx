@@ -11,6 +11,7 @@ import OrderCompletePage from "./pages/OrderCompletePage.jsx";
 import AdminProductCreatePage from "./pages/AdminProductCreatePage.jsx";
 import AdminProductsPage from "./pages/AdminProductsPage.jsx";
 import SignupPage from "./pages/SignupPage.jsx";
+import WishlistPage from "./pages/WishlistPage.jsx";
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
       <Route path="/" element={<MainPage />} />
       <Route path="/products/:id" element={<ProductDetailPage />} />
       <Route path="/cart" element={<CartPage />} />
+      <Route path="/wishlist" element={<WishlistPage />} />
       <Route path="/checkout" element={<CheckoutPage />} />
       <Route path="/order-complete" element={<OrderCompletePage />} />
       <Route path="/admin" element={<AdminPage />} />
