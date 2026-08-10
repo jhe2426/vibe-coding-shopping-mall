@@ -22,6 +22,7 @@ const buildLoginUserResponse = (user) => ({
   phoneNumber: user.phoneNumber,
   userType: user.userType,
   address: user.address,
+  deliveryAddresses: user.deliveryAddresses,
   createdAt: user.createdAt,
   updatedAt: user.updatedAt,
 });
@@ -104,6 +105,135 @@ export const getMyProfile = async (req, res, next) => {
     return res.status(200).json({
       user: buildLoginUserResponse(user),
     });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const buildDeliveryAddressPayload = (body) => ({
+  label: String(body.label || "배송지").trim() || "배송지",
+  recipientName: String(body.recipientName || "").trim(),
+  phoneNumber: String(body.phoneNumber || "").trim(),
+  postalCode: String(body.postalCode || "").trim(),
+  address: String(body.address || "").trim(),
+  addressDetail: String(body.addressDetail || "").trim(),
+  isDefault: Boolean(body.isDefault),
+});
+
+const getMyUser = (req) => User.findById(req.authUser.id);
+
+// 현재 로그인한 사용자의 저장된 배송지를 조회합니다.
+export const getMyDeliveryAddresses = async (req, res, next) => {
+  try {
+    const user = await getMyUser(req);
+
+    if (!user) {
+      return res.status(404).json({ message: "유저를 찾을 수 없습니다." });
+    }
+
+    return res.json({ deliveryAddresses: user.deliveryAddresses || [] });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// 배송지를 추가하고, 첫 배송지는 기본 배송지로 지정합니다.
+export const createMyDeliveryAddress = async (req, res, next) => {
+  try {
+    const user = await getMyUser(req);
+
+    if (!user) {
+      return res.status(404).json({ message: "유저를 찾을 수 없습니다." });
+    }
+
+    if (user.deliveryAddresses.length >= 10) {
+      return res.status(400).json({ message: "배송지는 최대 10개까지 등록할 수 있습니다." });
+    }
+
+    const deliveryAddress = buildDeliveryAddressPayload(req.body);
+
+    if (!deliveryAddress.recipientName || !deliveryAddress.phoneNumber || !deliveryAddress.postalCode || !deliveryAddress.address) {
+      return res.status(400).json({ message: "배송지 정보를 모두 입력해주세요." });
+    }
+
+    if (user.deliveryAddresses.length === 0 || deliveryAddress.isDefault) {
+      user.deliveryAddresses.forEach((item) => {
+        item.isDefault = false;
+      });
+      deliveryAddress.isDefault = true;
+    }
+
+    user.deliveryAddresses.push(deliveryAddress);
+    await user.save();
+
+    return res.status(201).json({ deliveryAddresses: user.deliveryAddresses });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// 저장된 배송지 정보를 수정합니다. 기본 배송지는 다른 주소를 기본으로 지정하기 전까지 유지합니다.
+export const updateMyDeliveryAddress = async (req, res, next) => {
+  try {
+    const user = await getMyUser(req);
+
+    if (!user) {
+      return res.status(404).json({ message: "유저를 찾을 수 없습니다." });
+    }
+
+    const address = user.deliveryAddresses.id(req.params.addressId);
+
+    if (!address) {
+      return res.status(404).json({ message: "배송지를 찾을 수 없습니다." });
+    }
+
+    const deliveryAddress = buildDeliveryAddressPayload(req.body);
+
+    if (!deliveryAddress.recipientName || !deliveryAddress.phoneNumber || !deliveryAddress.postalCode || !deliveryAddress.address) {
+      return res.status(400).json({ message: "배송지 정보를 모두 입력해주세요." });
+    }
+
+    if (deliveryAddress.isDefault) {
+      user.deliveryAddresses.forEach((item) => {
+        item.isDefault = false;
+      });
+    } else {
+      deliveryAddress.isDefault = address.isDefault;
+    }
+
+    address.set(deliveryAddress);
+    await user.save();
+
+    return res.json({ deliveryAddresses: user.deliveryAddresses });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// 배송지를 삭제하고, 삭제한 항목이 기본 배송지였다면 남은 첫 주소를 기본으로 지정합니다.
+export const deleteMyDeliveryAddress = async (req, res, next) => {
+  try {
+    const user = await getMyUser(req);
+
+    if (!user) {
+      return res.status(404).json({ message: "유저를 찾을 수 없습니다." });
+    }
+
+    const address = user.deliveryAddresses.id(req.params.addressId);
+
+    if (!address) {
+      return res.status(404).json({ message: "배송지를 찾을 수 없습니다." });
+    }
+
+    const wasDefault = address.isDefault;
+    address.deleteOne();
+
+    if (wasDefault && user.deliveryAddresses.length > 0) {
+      user.deliveryAddresses[0].isDefault = true;
+    }
+
+    await user.save();
+    return res.json({ deliveryAddresses: user.deliveryAddresses });
   } catch (error) {
     return next(error);
   }

@@ -1,5 +1,46 @@
 import mongoose from "mongoose";
 
+const deliveryAddressSchema = new mongoose.Schema(
+  {
+    label: {
+      type: String,
+      trim: true,
+      default: "배송지",
+      maxlength: 30,
+    },
+    recipientName: {
+      type: String,
+      required: [true, "수령인 이름은 필수입니다."],
+      trim: true,
+    },
+    phoneNumber: {
+      type: String,
+      required: [true, "수령인 연락처는 필수입니다."],
+      trim: true,
+    },
+    postalCode: {
+      type: String,
+      required: [true, "우편번호는 필수입니다."],
+      trim: true,
+    },
+    address: {
+      type: String,
+      required: [true, "기본 주소는 필수입니다."],
+      trim: true,
+    },
+    addressDetail: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    isDefault: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  { timestamps: true },
+);
+
 const userSchema = new mongoose.Schema(
   {
     userId: {
@@ -36,6 +77,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: "",
+    },
+    deliveryAddresses: {
+      type: [deliveryAddressSchema],
+      default: [],
     },
   },
   {
