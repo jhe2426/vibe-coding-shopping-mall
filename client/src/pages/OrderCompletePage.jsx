@@ -14,6 +14,11 @@ const formatOrderDate = (value) => new Intl.DateTimeFormat("ko-KR", {
   minute: "2-digit",
 }).format(new Date(value));
 const getProduct = (item) => (item.product && typeof item.product === "object" ? item.product : null);
+const paymentMethodLabel = {
+  CARD: "카드 결제",
+  BANK_TRANSFER: "계좌이체",
+  EXTERNAL: "외부 결제",
+};
 
 function OrderCompletePage() {
   const location = useLocation();
@@ -38,8 +43,8 @@ function OrderCompletePage() {
           <div className="order-complete-details">
             <dl>
               <div><dt>주문번호</dt><dd>{order.orderNumber}</dd></div>
-              <div><dt>주문일시</dt><dd>{formatOrderDate(order.orderedAt)}</dd></div>
-              <div><dt>결제 수단</dt><dd>외부 결제</dd></div>
+              <div><dt>주문일시</dt><dd>{formatOrderDate(order.createdAt || order.orderedAt)}</dd></div>
+              <div><dt>결제 수단</dt><dd>{paymentMethodLabel[order.payment?.method] || "외부 결제"}</dd></div>
               <div><dt>배송지</dt><dd>{order.delivery.recipientName} | {order.delivery.phoneNumber}<br />({order.delivery.postalCode}) {order.delivery.address} {order.delivery.addressDetail}</dd></div>
             </dl>
             <div className="order-complete-total"><span>총 결제 금액</span><strong>{formatPrice(order.totalAmount)}</strong></div>
@@ -50,8 +55,8 @@ function OrderCompletePage() {
               const product = getProduct(item);
               return (
                 <article key={item.id || item._id}>
-                  <img src={product?.cardImages?.defaultImage} alt={product?.name || "상품 이미지"} />
-                  <div><strong>{product?.name || item.productId}</strong><span>사이즈 {item.size}</span></div>
+                  <img src={product?.cardImages?.defaultImage || item.imageUrl} alt={product?.name || item.productName || "상품 이미지"} />
+                  <div><strong>{product?.name || item.productName || item.productId}</strong><span>사이즈 {item.size}</span></div>
                   <span>수량 {item.quantity}</span>
                   <b>{formatPrice(item.unitPrice * item.quantity)}</b>
                 </article>

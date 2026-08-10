@@ -104,7 +104,8 @@ function WishlistPage() {
       const likeId = getLikeId(like);
       const productId = like.productId || getProductLikeKey(product);
       const selectedSize = Number(selectedSizes[likeId] || 0);
-      const availableSizeItems = productId
+      const isSelling = product?.status === "SELLING";
+      const availableSizeItems = isSelling && productId
         ? getSortedSizeItems(product).filter((sizeItem) => getRemainingStock(productId, sizeItem, cartQuantityMap) > 0)
         : [];
       const selectedSizeItem = availableSizeItems.find((sizeItem) => sizeItem.size === selectedSize);
@@ -112,6 +113,7 @@ function WishlistPage() {
       return [
         likeId,
         {
+          isSelling,
           availableSizeItems,
           canAdd: Boolean(selectedSizeItem),
           hasAvailableStock: availableSizeItems.length > 0,
@@ -129,6 +131,14 @@ function WishlistPage() {
   );
   const cartValidationMessage = useMemo(() => {
     if (selectedLikes.length === 0 || canAddSelectedItems) return "";
+
+    const stoppedCount = selectedLikes.filter(
+      (like) => !wishlistItemStatusMap.get(getLikeId(like))?.isSelling,
+    ).length;
+
+    if (stoppedCount > 0) {
+      return `선택한 상품 중 ${stoppedCount}개는 판매가 중지되었습니다.`;
+    }
 
     const unavailableCount = selectedLikes.filter(
       (like) => !wishlistItemStatusMap.get(getLikeId(like))?.hasAvailableStock,
@@ -324,6 +334,7 @@ function WishlistPage() {
                 const itemStatus = wishlistItemStatusMap.get(likeId);
                 const selectedSize = selectedSizes[likeId] || "";
                 const hasAvailableStock = Boolean(itemStatus?.hasAvailableStock);
+                const isSelling = Boolean(itemStatus?.isSelling);
                 const isPending = pendingProductId === productId;
                 const isSelected = selectedLikeIds.has(likeId);
 
@@ -351,8 +362,9 @@ function WishlistPage() {
                       <dl>
                         <div><dt>브랜드</dt><dd>{product?.brand || "STRIDE"}</dd></div>
                       </dl>
-                      {!hasAvailableStock && <p className="wishlist-stock-message">재고 수량 부족</p>}
-                      {hasAvailableStock && !selectedSize && <p className="wishlist-size-message">사이즈 선택 필요</p>}
+                      {!isSelling && <p className="wishlist-stock-message">판매 중지 상품</p>}
+                      {isSelling && !hasAvailableStock && <p className="wishlist-stock-message">재고 수량 부족</p>}
+                      {isSelling && hasAvailableStock && !selectedSize && <p className="wishlist-size-message">사이즈 선택 필요</p>}
                     </div>
 
                     <div className="cart-item-controls wishlist-item-controls">
@@ -360,7 +372,7 @@ function WishlistPage() {
                         <span>사이즈</span>
                         <select
                           value={selectedSize}
-                          disabled={!hasAvailableStock || isAddingSelected}
+                          disabled={!isSelling || !hasAvailableStock || isAddingSelected}
                           onChange={(event) => {
                             const nextSize = event.target.value;
 

@@ -16,6 +16,14 @@ const serializeLike = (like) => ({
 
 const findProduct = (id) => Product.findOne(buildProductFilter(id));
 
+const ensureProductCanBeLiked = (product) => {
+  if (product.status !== "SELLING") {
+    const error = new Error("판매 중지된 상품은 찜할 수 없습니다.");
+    error.status = 400;
+    throw error;
+  }
+};
+
 // 로그인한 사용자가 좋아요한 상품 전체를 조회합니다.
 export const getProductLikes = async (req, res, next) => {
   try {
@@ -55,6 +63,8 @@ export const createProductLike = async (req, res, next) => {
       return res.status(404).json({ message: "상품을 찾을 수 없습니다." });
     }
 
+    ensureProductCanBeLiked(product);
+
     const existingLike = await ProductLike.findOne({ user: req.authUser.id, product: product._id });
 
     if (existingLike) {
@@ -90,6 +100,8 @@ export const updateProductLike = async (req, res, next) => {
       await ProductLike.deleteOne({ user: req.authUser.id, product: product._id });
       return res.json({ liked: false, like: null });
     }
+
+    ensureProductCanBeLiked(product);
 
     const like = await ProductLike.findOneAndUpdate(
       { user: req.authUser.id, product: product._id },

@@ -615,6 +615,12 @@ button {
   font-weight: 500;
 }
 
+.cart-item.is-unavailable { background: #fafafa; }
+.cart-item.is-unavailable .cart-item-image,
+.cart-item.is-unavailable .cart-item-copy > a,
+.cart-item.is-unavailable .cart-item-price { opacity: 0.55; }
+.cart-item-unavailable { color: #c83b32; font-size: 13px; font-weight: 800; }
+
 .cart-item-copy dl div {
   display: flex;
   gap: 12px;
@@ -1434,7 +1440,8 @@ button {
 }
 
 .product-cart-button,
-.product-wishlist-button {
+.product-wishlist-button,
+.product-buy-now-button {
   display: inline-flex;
   height: 58px;
   align-items: center;
@@ -1446,12 +1453,23 @@ button {
 }
 
 .product-cart-button {
+  border: 1px solid #d5d5d5;
+  background: #ffffff;
+  color: #111111;
+}
+
+.product-cart-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.product-buy-now-button {
   border: 1px solid #050505;
   background: #050505;
   color: #ffffff;
 }
 
-.product-cart-button:disabled {
+.product-buy-now-button:disabled {
   cursor: not-allowed;
   opacity: 0.55;
 }
@@ -2233,7 +2251,8 @@ button {
   }
 
   .product-cart-button,
-  .product-wishlist-button {
+  .product-wishlist-button,
+  .product-buy-now-button {
     height: 58px;
     font-size: 18px;
   }
@@ -2430,7 +2449,7 @@ button {
 }
 
 .header-user-bar button:not(:first-child)::before,
-.header-user-bar a:not(:first-child)::before {
+.header-user-bar a:not(:first-child):not(:first-of-type)::before {
   position: absolute;
   top: 50%;
   left: 0;
@@ -5069,7 +5088,6 @@ button.admin-nav-link {
 
 .checkout-payment-notice p { display: grid; gap: 7px; margin: 0; color: #777777; font-size: 14px; line-height: 1.45; }
 .checkout-payment-notice p strong { color: #111111; font-size: 16px; }
-.checkout-form-error { margin: 12px 0 0; color: #ca312a; font-size: 14px; font-weight: 700; }
 
 .delivery-address-modal-layer {
   position: fixed;
@@ -5408,6 +5426,7 @@ button.admin-nav-link {
 .checkout-summary-total { border-top: 1px solid #dcdcdc; margin-top: 20px; padding-top: 20px; color: #111111; font-size: 16px; font-weight: 900; }
 .checkout-summary-total strong { font-size: 26px; }
 .checkout-summary > button { width: 100%; height: 60px; border: 0; border-radius: 5px; background: #111111; color: #ffffff; margin-top: 26px; font-size: 18px; font-weight: 900; }
+.checkout-summary > button:disabled { cursor: wait; background: #666666; }
 .checkout-summary > p { display: flex; align-items: center; justify-content: center; gap: 6px; color: #888888; margin: 18px 0 0; font-size: 12px; }
 
 .order-complete-main { padding-bottom: 92px; }

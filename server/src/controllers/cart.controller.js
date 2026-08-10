@@ -9,6 +9,14 @@ const buildProductFilter = (id) => (
 
 const getProductPrice = (product) => product.salePrice ?? product.regularPrice;
 
+const ensureProductIsSelling = (product) => {
+  if (product.status !== "SELLING") {
+    const error = new Error("판매 중지된 상품은 장바구니에 담을 수 없습니다.");
+    error.status = 400;
+    throw error;
+  }
+};
+
 const getCartForUser = (userId) => Cart.findOne({ user: userId }).populate("items.product");
 
 const serializeCart = (cart) => (cart ? cart.toJSON() : {
@@ -61,6 +69,8 @@ export const addCartItem = async (req, res, next) => {
     if (!product) {
       return res.status(404).json({ message: "상품을 찾을 수 없습니다." });
     }
+
+    ensureProductIsSelling(product);
 
     const quantity = validateQuantity(req.body.quantity ?? 1);
     const sizeItem = findProductSize(product, req.body.size);
@@ -121,6 +131,8 @@ export const updateCartItem = async (req, res, next) => {
     if (!product) {
       return res.status(404).json({ message: "상품을 찾을 수 없습니다." });
     }
+
+    ensureProductIsSelling(product);
 
     const quantity = validateQuantity(req.body.quantity);
     const sizeItem = findProductSize(product, item.size);

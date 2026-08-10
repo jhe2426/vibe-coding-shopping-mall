@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, Heart, Lock, Minus, Plus, Ruler, ShoppingBag, Star, X } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, CreditCard, Heart, Lock, Minus, Plus, Ruler, ShoppingBag, Star, X } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { fetchProductLikes, getProductLikeKey, updateProductLikeStatus } from "../api/product-likes.js";
@@ -99,7 +99,7 @@ function ProductDetailPage() {
 
         const [productResponse, productsResponse] = await Promise.all([
           fetch(`${apiBaseUrl}/products/${id}`),
-          fetch(`${apiBaseUrl}/products`),
+          fetch(`${apiBaseUrl}/products?status=SELLING`),
         ]);
 
         const productBody = await productResponse.json().catch(() => ({}));
@@ -112,7 +112,11 @@ function ProductDetailPage() {
         if (!isMounted) return;
 
         setProduct(productBody);
-        setProducts(Array.isArray(productsBody) ? productsBody : []);
+        setProducts(
+          Array.isArray(productsBody)
+            ? productsBody.filter((item) => item.status === "SELLING")
+            : [],
+        );
         setSelectedVariantId(getProductPathId(productBody));
 
         const firstAvailableSize = [...(productBody.sizes || [])]
@@ -279,6 +283,7 @@ function ProductDetailPage() {
   const targetGenderKoreanLabel = genderKoreanLabels[selectedProduct?.targetGender] || "공용";
   const categoryLabel = categoryLabels[selectedProduct?.category] || "Shoes";
   const categoryKoreanLabel = categoryKoreanLabels[selectedProduct?.category] || "슈즈";
+  const isSelectedProductSelling = selectedProduct?.status === "SELLING";
 
   const selectColorVariant = (variant) => {
     const firstAvailableSize = [...(variant.sizes || [])]
@@ -436,6 +441,11 @@ function ProductDetailPage() {
   const addToCart = async () => {
     if (!selectedSize || !selectedProduct) return;
 
+    if (!isSelectedProductSelling) {
+      setCartActionError("판매 중지된 상품은 장바구니에 담을 수 없습니다.");
+      return;
+    }
+
     if (!getAuthToken()) {
       try {
         addGuestCartItem({
@@ -482,6 +492,32 @@ function ProductDetailPage() {
     }
   };
 
+  const buyNow = () => {
+    if (!selectedSize || !selectedProduct || !isSelectedProductSelling) return;
+
+    if (!getAuthToken()) {
+      navigate("/login", { state: { from: `/products/${id}` } });
+      return;
+    }
+
+    const unitPrice = Number(selectedProduct.salePrice ?? selectedProduct.regularPrice ?? 0);
+
+    navigate("/checkout", {
+      state: {
+        checkout: {
+          items: [{
+            product: selectedProduct,
+            productId: getProductPathId(selectedProduct),
+            size: selectedSize,
+            quantity: selectedQuantity,
+            unitPrice,
+          }],
+          totalAmount: unitPrice * selectedQuantity,
+        },
+      },
+    });
+  };
+
   const toggleProductLike = async (targetProduct) => {
     const productId = getProductLikeKey(targetProduct);
 
@@ -493,6 +529,11 @@ function ProductDetailPage() {
     }
 
     const isLiked = likedProductIds.has(productId);
+
+    if (!isLiked && targetProduct.status !== "SELLING") {
+      setLikeActionError("판매 중지된 상품은 찜할 수 없습니다.");
+      return;
+    }
 
     try {
       setPendingLikeProductId(productId);
@@ -603,7 +644,7 @@ function ProductDetailPage() {
                 <div className="product-size-grid">
                   {displayedSizeOptions.map((size) => {
                     const stockQuantity = availableSizeMap.get(size) ?? 0;
-                    const isDisabled = stockQuantity <= 0;
+                    const isDisabled = !isSelectedProductSelling || stockQuantity <= 0;
 
                     return (
                       <button
@@ -628,7 +669,7 @@ function ProductDetailPage() {
                     <button
                       type="button"
                       aria-label="수량 줄이기"
-                      disabled={selectedQuantity <= 1}
+                      disabled={!isSelectedProductSelling || selectedQuantity <= 1}
                       onClick={() => setSelectedQuantity((quantity) => Math.max(1, quantity - 1))}
                     >
                       <Minus size={17} strokeWidth={2.2} />
@@ -637,7 +678,7 @@ function ProductDetailPage() {
                     <button
                       type="button"
                       aria-label="수량 늘리기"
-                      disabled={!selectedSize || selectedQuantity >= selectedStockQuantity}
+                      disabled={!isSelectedProductSelling || !selectedSize || selectedQuantity >= selectedStockQuantity}
                       onClick={() => setSelectedQuantity((quantity) => Math.min(selectedStockQuantity, quantity + 1))}
                     >
                       <Plus size={17} strokeWidth={2.2} />
@@ -646,19 +687,18 @@ function ProductDetailPage() {
                 </div>
 
                 <div className="product-action-stack">
-                  <button className="product-cart-button" type="button" disabled={!selectedSize || isAddingToCart} onClick={addToCart}>
-                    {isAddingToCart ? "담는 중" : "장바구니"}
+                  <button className="product-cart-button" type="button" disabled={!isSelectedProductSelling || !selectedSize || isAddingToCart} onClick={addToCart}>
+                    {isAddingToCart ? "담는 중" : isSelectedProductSelling ? "장바구니" : "판매 중지 상품"}
                     <ShoppingBag size={20} strokeWidth={2.2} />
                   </button>
                   <button
-                    className={`product-wishlist-button ${likedProductIds.has(getProductLikeKey(selectedProduct)) ? "is-liked" : ""}`}
+                    className="product-buy-now-button"
                     type="button"
-                    aria-pressed={likedProductIds.has(getProductLikeKey(selectedProduct))}
-                    disabled={pendingLikeProductId === getProductLikeKey(selectedProduct)}
-                    onClick={() => toggleProductLike(selectedProduct)}
+                    disabled={!isSelectedProductSelling || !selectedSize}
+                    onClick={buyNow}
                   >
-                    {likedProductIds.has(getProductLikeKey(selectedProduct)) ? "찜 해제" : "위시리스트"}
-                    <Heart size={25} strokeWidth={2.1} />
+                    결제하기
+                    <CreditCard size={21} strokeWidth={2.2} />
                   </button>
                 </div>
                 {cartActionError && <p className="product-cart-action-error" role="alert">{cartActionError}</p>}

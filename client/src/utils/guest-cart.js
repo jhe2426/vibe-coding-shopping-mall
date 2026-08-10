@@ -5,12 +5,14 @@ const GUEST_CART_KEY = "strideGuestCart";
 const getProductId = (product) => product?.productId || product?.id;
 const getProductPrice = (product) => Number(product?.salePrice ?? product?.regularPrice ?? 0);
 const getItemId = (productId, size) => `guest-${productId}-${size}`;
+const isProductSelling = (product) => product?.status === "SELLING";
 
 const getProductSnapshot = (product) => ({
   productId: getProductId(product),
   name: product?.name || "상품",
   targetGender: product?.targetGender,
   category: product?.category,
+  status: product?.status,
   cardImages: product?.cardImages || {},
   sizes: Array.isArray(product?.sizes) ? product.sizes : [],
 });
@@ -66,6 +68,10 @@ export const addGuestCartItem = ({ product, size, quantity }) => {
     throw new Error("장바구니에 담을 상품 정보가 올바르지 않습니다.");
   }
 
+  if (!isProductSelling(product)) {
+    throw new Error("판매 중지된 상품은 장바구니에 담을 수 없습니다.");
+  }
+
   const cart = getGuestCart();
   const existingItem = cart.items.find((item) => item.productId === productId && Number(item.size) === parsedSize);
   const nextQuantity = (existingItem?.quantity || 0) + parsedQuantity;
@@ -108,6 +114,10 @@ export const updateGuestCartItem = (itemId, quantity) => {
 
   if (!item || !Number.isInteger(parsedQuantity) || parsedQuantity < 1) {
     throw new Error("수량을 변경하지 못했습니다.");
+  }
+
+  if (!isProductSelling(item.product)) {
+    throw new Error("판매 중지된 상품의 수량은 변경할 수 없습니다.");
   }
 
   if (parsedQuantity > getStockQuantity(item.product, item.size)) {

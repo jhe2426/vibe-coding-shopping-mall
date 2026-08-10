@@ -5,6 +5,7 @@ import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import CheckoutSteps from "../components/CheckoutSteps.jsx";
 import NavigationBar from "../components/NavigationBar.jsx";
 import SiteFooter from "../components/SiteFooter.jsx";
+import { fetchMyProfile } from "../api/auth.js";
 import { buildAuthHeaders } from "../utils/auth-storage.js";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "/api";
@@ -24,6 +25,10 @@ const deliveryAddressLabelPattern = /^[가-힣A-Za-z0-9][가-힣A-Za-z0-9\s]{0,2
 const postalCodePattern = /^\d{5}$/;
 const daumPostcodeScriptId = "kakao-postcode-script";
 const daumPostcodeScriptUrl = "https://t1.kakaocdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js";
+const portOneScriptId = "portone-v1-sdk";
+const portOneScriptUrl = "https://cdn.iamport.kr/v1/iamport.js";
+const portOneCustomerCode = "imp74537423";
+const portOneChannelKey = import.meta.env.VITE_PORTONE_CHANNEL_KEY;
 
 const normalizeHangul = (value) => String(value || "").normalize("NFC");
 
@@ -128,6 +133,29 @@ const loadKakaoPostcode = () => new Promise((resolve, reject) => {
   document.head.append(script);
 });
 
+const loadPortOne = () => new Promise((resolve, reject) => {
+  if (window.IMP) {
+    resolve();
+    return;
+  }
+
+  const existingScript = document.getElementById(portOneScriptId);
+
+  if (existingScript) {
+    existingScript.addEventListener("load", resolve, { once: true });
+    existingScript.addEventListener("error", () => reject(new Error("결제 모듈을 불러오지 못했습니다.")), { once: true });
+    return;
+  }
+
+  const script = document.createElement("script");
+  script.id = portOneScriptId;
+  script.src = portOneScriptUrl;
+  script.async = true;
+  script.onload = resolve;
+  script.onerror = () => reject(new Error("결제 모듈을 불러오지 못했습니다."));
+  document.head.append(script);
+});
+
 function CheckoutPage() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -140,7 +168,6 @@ function CheckoutPage() {
     addressDetail: "",
     deliveryMemo: "",
   });
-  const [formError, setFormError] = useState("");
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
   const [isAddressListLoading, setIsAddressListLoading] = useState(false);
   const [isAddressFormOpen, setIsAddressFormOpen] = useState(false);
@@ -153,6 +180,8 @@ function CheckoutPage() {
   const [deletingAddressId, setDeletingAddressId] = useState("");
   const [isPostcodeModalOpen, setIsPostcodeModalOpen] = useState(false);
   const [postcodeOnSelect, setPostcodeOnSelect] = useState(null);
+  const [isPaymentRequesting, setIsPaymentRequesting] = useState(false);
+  const [buyer, setBuyer] = useState(null);
   const postcodeContainerRef = useRef(null);
 
   const productAmount = useMemo(
@@ -231,13 +260,34 @@ function CheckoutPage() {
     };
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadBuyer = async () => {
+      try {
+        const user = await fetchMyProfile();
+
+        if (isMounted) {
+          setBuyer(user);
+        }
+      } catch {
+        // 결제 요청 시 배송 정보로 보완할 수 있도록 별도 오류는 표시하지 않습니다.
+      }
+    };
+
+    loadBuyer();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   if (!checkout?.items?.length) {
     return <Navigate to="/cart" replace />;
   }
 
   const updateField = (event) => {
     const { name, value } = event.target;
-    setFormError("");
     setForm((currentForm) => ({ ...currentForm, [name]: value }));
   };
 
@@ -344,7 +394,6 @@ function CheckoutPage() {
         postalCode,
         address,
       }));
-      setFormError("");
     });
   };
 
@@ -373,7 +422,6 @@ function CheckoutPage() {
       address: deliveryAddress.address,
       addressDetail: deliveryAddress.addressDetail || "",
     }));
-    setFormError("");
     setIsAddressModalOpen(false);
   };
 
@@ -474,26 +522,135 @@ function CheckoutPage() {
     setIsAddressFormOpen(true);
   };
 
-  const submitPayment = (event) => {
+  const submitPayment = async (event) => {
     event.preventDefault();
 
     if (!form.recipientName || !form.phoneNumber || !form.postalCode || !form.address) {
-      setFormError("배송 정보를 모두 입력해주세요.");
+      window.alert("배송 정보를 모두 입력해주세요.");
       return;
     }
 
-    navigate("/order-complete", {
-      replace: true,
-      state: {
-        order: {
-          orderNumber: `S${Date.now()}`,
-          orderedAt: new Date().toISOString(),
-          items: checkout.items,
-          totalAmount: productAmount,
-          delivery: form,
+    if (!portOneChannelKey) {
+      window.alert("결제 설정을 확인해주세요.");
+      return;
+    }
+
+    try {
+      setIsPaymentRequesting(true);
+      await loadPortOne();
+
+      const IMP = window.IMP;
+
+      if (!IMP) {
+        throw new Error("결제 모듈을 불러오지 못했습니다.");
+      }
+
+      IMP.init(portOneCustomerCode);
+
+      const orderResponse = await fetch(`${apiBaseUrl}/orders`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...buildAuthHeaders(),
         },
-      },
-    });
+        body: JSON.stringify({
+          items: checkout.items.map((item) => ({
+            productId: item.productId,
+            size: item.size,
+            quantity: item.quantity,
+          })),
+          delivery: form,
+        }),
+      });
+      const orderData = await orderResponse.json().catch(() => ({}));
+
+      if (!orderResponse.ok || !orderData.order) {
+        throw new Error(orderData.message || "주문을 준비하지 못했습니다.");
+      }
+
+      const merchantUid = orderData.order.orderNumber;
+      const productName = checkout.items.length === 1
+        ? getProduct(checkout.items[0])?.name || "STRIDE 상품"
+        : `${getProduct(checkout.items[0])?.name || "STRIDE 상품"} 외 ${checkout.items.length - 1}건`;
+
+      IMP.request_pay(
+        {
+          channelKey: portOneChannelKey,
+          pay_method: "card",
+          merchant_uid: merchantUid,
+          name: productName,
+          amount: orderData.order.totalAmount,
+          buyer_name: form.recipientName,
+          buyer_email: buyer?.userId || "",
+          buyer_tel: buyer?.phoneNumber || form.phoneNumber.replace(/\D/g, ""),
+        },
+        async (response) => {
+          if (response.error_code) {
+            window.alert("결제가 취소되었습니다.");
+            setIsPaymentRequesting(false);
+            return;
+          }
+
+          if (!response.imp_uid) {
+            window.alert("결제가 취소되었습니다.");
+            setIsPaymentRequesting(false);
+            return;
+          }
+
+          if (response.merchant_uid && response.merchant_uid !== merchantUid) {
+            window.alert("결제를 완료하지 못했습니다.");
+            setIsPaymentRequesting(false);
+            return;
+          }
+
+          try {
+            const completeResponse = await fetch(`${apiBaseUrl}/orders/payment-complete`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                ...buildAuthHeaders(),
+              },
+              body: JSON.stringify({
+                impUid: response.imp_uid,
+                merchantUid,
+                items: checkout.items.map((item) => ({
+                  productId: item.productId,
+                  size: item.size,
+                  quantity: item.quantity,
+                })),
+                delivery: form,
+              }),
+            });
+            const completeData = await completeResponse.json().catch(() => ({}));
+
+            if (!completeResponse.ok) {
+              throw new Error(completeData.message || "주문을 저장하지 못했습니다.");
+            }
+
+            await Promise.all(checkout.items.map((item) => {
+              const cartItemId = item.id || item._id;
+
+              if (!cartItemId) return Promise.resolve();
+
+              return fetch(`${apiBaseUrl}/cart/items/${cartItemId}`, {
+                method: "DELETE",
+                headers: {
+                  ...buildAuthHeaders(),
+                },
+              });
+            }));
+            window.dispatchEvent(new Event("stride-cart-change"));
+            navigate("/order-complete", { replace: true, state: { order: completeData.order } });
+          } catch {
+            window.alert("주문 처리에 실패했습니다. 결제 내역을 확인해주세요.");
+            setIsPaymentRequesting(false);
+          }
+        },
+      );
+    } catch {
+      window.alert("결제창을 열지 못했습니다. 잠시 후 다시 시도해주세요.");
+      setIsPaymentRequesting(false);
+    }
   };
 
   return (
@@ -552,7 +709,6 @@ function CheckoutPage() {
                 <p><strong>결제는 안전한 외부 결제창에서 진행됩니다.</strong><span>고객님의 결제 정보는 STRIDE가 저장하지 않습니다.</span><span>결제 수단 선택은 결제 단계에서 가능합니다.</span></p>
               </div>
             </section>
-            {formError && <p className="checkout-form-error" role="alert">{formError}</p>}
           </form>
 
           <aside className="checkout-summary">
@@ -575,7 +731,7 @@ function CheckoutPage() {
               <div><dt>배송비</dt><dd>0원</dd></div>
             </dl>
             <div className="checkout-summary-total"><span>총 결제 금액</span><strong>{formatPrice(productAmount)}</strong></div>
-            <button type="button" onClick={submitPayment}>결제하기</button>
+            <button type="button" disabled={isPaymentRequesting} onClick={submitPayment}>{isPaymentRequesting ? "결제 처리 중" : "결제하기"}</button>
           </aside>
         </div>
       </main>

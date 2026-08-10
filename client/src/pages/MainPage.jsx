@@ -66,7 +66,7 @@ function MainPage() {
         setIsLoadingProducts(true);
         setProductLoadError("");
 
-        const response = await fetch(`${apiBaseUrl}/products`);
+        const response = await fetch(`${apiBaseUrl}/products?status=SELLING`);
         const productList = await response.json().catch(() => ({}));
 
         if (!response.ok) {
@@ -74,7 +74,12 @@ function MainPage() {
         }
 
         if (isMounted) {
-          setProducts(Array.isArray(productList) ? productList : []);
+          // 관리자 화면과 달리 메인에는 판매 중인 상품만 노출한다.
+          setProducts(
+            Array.isArray(productList)
+              ? productList.filter((product) => product.status === "SELLING")
+              : [],
+          );
         }
       } catch (error) {
         if (isMounted) {

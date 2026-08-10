@@ -20,6 +20,24 @@ const categoryLabels = {
 
 const getCartItemId = (item) => item.id || item._id;
 const getProduct = (item) => (item.product && typeof item.product === "object" ? item.product : null);
+const getCartItemAvailability = (item) => {
+  const product = getProduct(item);
+  const stockQuantity = product?.sizes?.find((sizeItem) => sizeItem.size === item.size)?.stockQuantity ?? 0;
+
+  if (!product || product.status !== "SELLING") {
+    return { isPurchasable: false, message: "판매 중지 상품" };
+  }
+
+  if (stockQuantity < 1) {
+    return { isPurchasable: false, message: "품절 상품" };
+  }
+
+  if (item.quantity > stockQuantity) {
+    return { isPurchasable: false, message: "재고 수량 부족" };
+  }
+
+  return { isPurchasable: true, stockQuantity };
+};
 
 function CartPage() {
   const navigate = useNavigate();
@@ -38,7 +56,7 @@ function CartPage() {
     if (!getAuthToken()) {
       const guestCart = getGuestCart();
       setCart(guestCart);
-      setSelectedItemIds(new Set(guestCart.items.map(getCartItemId)));
+      setSelectedItemIds(new Set(guestCart.items.filter((item) => getCartItemAvailability(item).isPurchasable).map(getCartItemId)));
       setIsLoading(false);
       return;
     }
@@ -60,7 +78,7 @@ function CartPage() {
 
       const items = Array.isArray(data.items) ? data.items : [];
       setCart({ items, totalAmount: data.totalAmount || 0 });
-      setSelectedItemIds(new Set(items.map(getCartItemId)));
+      setSelectedItemIds(new Set(items.filter((item) => getCartItemAvailability(item).isPurchasable).map(getCartItemId)));
     } catch (error) {
       setLoadError(error.message || "장바구니를 불러오지 못했습니다.");
     } finally {
@@ -82,15 +100,19 @@ function CartPage() {
   }, [quantityNotice]);
 
   const itemCount = useMemo(() => cart.items.reduce((count, item) => count + item.quantity, 0), [cart.items]);
+  const purchasableItems = useMemo(
+    () => cart.items.filter((item) => getCartItemAvailability(item).isPurchasable),
+    [cart.items],
+  );
   const selectedItems = useMemo(
-    () => cart.items.filter((item) => selectedItemIds.has(getCartItemId(item))),
-    [cart.items, selectedItemIds],
+    () => purchasableItems.filter((item) => selectedItemIds.has(getCartItemId(item))),
+    [purchasableItems, selectedItemIds],
   );
   const selectedTotalAmount = useMemo(
     () => selectedItems.reduce((total, item) => total + (item.unitPrice * item.quantity), 0),
     [selectedItems],
   );
-  const isAllItemsSelected = cart.items.length > 0 && selectedItems.length === cart.items.length;
+  const isAllItemsSelected = purchasableItems.length > 0 && selectedItems.length === purchasableItems.length;
   const hasPartialSelection = selectedItems.length > 0 && !isAllItemsSelected;
 
   useEffect(() => {
@@ -99,7 +121,10 @@ function CartPage() {
     }
   }, [hasPartialSelection]);
 
-  const toggleItemSelection = (itemId) => {
+  const toggleItemSelection = (item) => {
+    if (!getCartItemAvailability(item).isPurchasable) return;
+
+    const itemId = getCartItemId(item);
     setSelectedItemIds((currentSelection) => {
       const nextSelection = new Set(currentSelection);
 
@@ -114,7 +139,7 @@ function CartPage() {
   };
 
   const toggleAllItemSelection = () => {
-    setSelectedItemIds(isAllItemsSelected ? new Set() : new Set(cart.items.map(getCartItemId)));
+    setSelectedItemIds(isAllItemsSelected ? new Set() : new Set(purchasableItems.map(getCartItemId)));
   };
 
   const clearQuantityInputError = (itemId) => {
@@ -278,6 +303,11 @@ function CartPage() {
       return;
     }
 
+    if (selectedItems.length === 0) {
+      window.alert("주문할 수 있는 상품을 선택해주세요.");
+      return;
+    }
+
     navigate("/checkout", {
       state: {
         checkout: {
@@ -339,20 +369,22 @@ function CartPage() {
               {cart.items.map((item) => {
                 const product = getProduct(item);
                 const itemId = getCartItemId(item);
-                const stockQuantity = product?.sizes?.find((sizeItem) => sizeItem.size === item.size)?.stockQuantity ?? 99;
+                const availability = getCartItemAvailability(item);
+                const stockQuantity = availability.stockQuantity ?? 0;
+                const isUnavailable = !availability.isPurchasable;
                 const isPending = pendingItemId === itemId;
                 const quantityInput = quantityInputs[itemId] ?? String(item.quantity);
                 const isQuantityInputInvalid = invalidQuantityItemId === itemId;
                 const isSelected = selectedItemIds.has(itemId);
 
                 return (
-                  <article className="cart-item" key={itemId}>
+                  <article className={`cart-item${isUnavailable ? " is-unavailable" : ""}`} key={itemId}>
                     <label className="cart-item-select">
                       <input
                         aria-label={`${product?.name || "상품"} 선택`}
                         checked={isSelected}
-                        disabled={isPending}
-                        onChange={() => toggleItemSelection(itemId)}
+                        disabled={isPending || isUnavailable}
+                        onChange={() => toggleItemSelection(item)}
                         type="checkbox"
                       />
                     </label>
@@ -368,16 +400,17 @@ function CartPage() {
                       <dl>
                         <div><dt>사이즈</dt><dd>{item.size}</dd></div>
                       </dl>
+                      {isUnavailable && <span className="cart-item-unavailable">{availability.message}</span>}
                     </div>
                       <div className="cart-item-controls">
                         <div className="cart-quantity-stepper" aria-label={`${product?.name || "상품"} 수량`}>
-                          <button type="button" aria-label="수량 줄이기" disabled={isPending || item.quantity <= 1} onClick={() => updateQuantity(item, item.quantity - 1)}>
+                          <button type="button" aria-label="수량 줄이기" disabled={isPending || isUnavailable || item.quantity <= 1} onClick={() => updateQuantity(item, item.quantity - 1)}>
                             <Minus size={16} strokeWidth={2.2} />
                           </button>
                           <input
                             aria-invalid={isQuantityInputInvalid || undefined}
                             aria-label="수량 직접 입력"
-                            disabled={isPending}
+                            disabled={isPending || isUnavailable}
                             inputMode="numeric"
                             maxLength={3}
                             onBlur={() => commitQuantityInput(item, stockQuantity)}
@@ -399,7 +432,7 @@ function CartPage() {
                             }}
                             value={quantityInput}
                           />
-                          <button type="button" aria-label="수량 늘리기" disabled={isPending || item.quantity >= stockQuantity} onClick={() => updateQuantity(item, item.quantity + 1)}>
+                          <button type="button" aria-label="수량 늘리기" disabled={isPending || isUnavailable || item.quantity >= stockQuantity} onClick={() => updateQuantity(item, item.quantity + 1)}>
                             <Plus size={16} strokeWidth={2.2} />
                           </button>
                         </div>

@@ -30,6 +30,11 @@ const deliverySchema = new Schema(
 
 const paymentSchema = new Schema(
   {
+    provider: {
+      type: String,
+      enum: ["PORTONE"],
+      default: "PORTONE",
+    },
     method: {
       type: String,
       enum: ["EXTERNAL", "CARD", "BANK_TRANSFER"],
@@ -41,7 +46,28 @@ const paymentSchema = new Schema(
       default: "READY",
       index: true,
     },
-    transactionId: { type: String, default: "", trim: true },
+    merchantUid: {
+      type: String,
+      trim: true,
+      required() {
+        return this.status === "PAID";
+      },
+    },
+    impUid: {
+      type: String,
+      trim: true,
+      required() {
+        return this.status === "PAID";
+      },
+    },
+    pgTid: { type: String, default: "", trim: true },
+    paidAmount: {
+      type: Number,
+      min: 0,
+      required() {
+        return this.status === "PAID";
+      },
+    },
     approvedAt: { type: Date, default: null },
   },
   { _id: false },
@@ -79,9 +105,15 @@ const orderSchema = new Schema(
 
 // 서버가 최종 금액을 상품 스냅샷 기준으로 계산해 클라이언트 금액 조작을 막습니다.
 orderSchema.pre("validate", function () {
+  this.items.forEach((item) => {
+    item.lineAmount = item.unitPrice * item.quantity;
+  });
   this.productAmount = this.items.reduce((total, item) => total + (item.unitPrice * item.quantity), 0);
   this.totalAmount = this.productAmount - this.discountAmount + this.deliveryFee;
 });
+
+// 하나의 포트원 거래는 한 주문에만 연결될 수 있습니다.
+orderSchema.index({ "payment.impUid": 1 }, { unique: true, sparse: true });
 
 const Order = model("Order", orderSchema);
 
