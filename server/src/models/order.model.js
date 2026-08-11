@@ -69,6 +69,20 @@ const paymentSchema = new Schema(
       },
     },
     approvedAt: { type: Date, default: null },
+    canceledAt: { type: Date, default: null },
+    cancelReason: { type: String, default: "", trim: true, maxlength: 200 },
+  },
+  { _id: false },
+);
+
+const orderStatusHistorySchema = new Schema(
+  {
+    status: {
+      type: String,
+      enum: ["PAYMENT_PENDING", "PAID", "PREPARING", "SHIPPED", "DELIVERED", "CANCELED"],
+      required: true,
+    },
+    changedAt: { type: Date, required: true, default: Date.now },
   },
   { _id: false },
 );
@@ -96,6 +110,9 @@ const orderSchema = new Schema(
       index: true,
     },
     payment: { type: paymentSchema, default: () => ({}) },
+    statusHistory: { type: [orderStatusHistorySchema], default: [] },
+    adminMemo: { type: String, default: "", trim: true, maxlength: 1000 },
+    adminMemoUpdatedAt: { type: Date, default: null },
   },
   {
     timestamps: true,

@@ -63,3 +63,23 @@ export const verifyPortOnePayment = async ({ impUid, merchantUid, totalAmount })
 
   return payment;
 };
+
+// 결제 취소는 반드시 서버에서 포트원 거래고유번호와 서버 저장 금액으로 요청합니다.
+export const cancelPortOnePayment = async ({ impUid, totalAmount, reason }) => {
+  const accessToken = await getPortOneAccessToken();
+  const response = await fetch(`${portOneApiBaseUrl}/payments/cancel`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: accessToken,
+    },
+    body: JSON.stringify({
+      imp_uid: impUid,
+      amount: totalAmount,
+      checksum: totalAmount,
+      reason,
+    }),
+  });
+
+  return parseResponse(response, "포트원 결제 취소에 실패했습니다.");
+};

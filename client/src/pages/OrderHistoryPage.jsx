@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ChevronDown, CircleCheck, Clock3, PackageCheck, Truck, XCircle } from "lucide-react";
-import { Link, Navigate } from "react-router-dom";
+import { ArrowLeft, ChevronDown, CircleCheck, Clock3, PackageCheck, ShoppingBag, Star, Truck, X, XCircle } from "lucide-react";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 
 import NavigationBar from "../components/NavigationBar.jsx";
 import SiteFooter from "../components/SiteFooter.jsx";
@@ -11,12 +11,14 @@ const formatPrice = (price) => `${Number(price || 0).toLocaleString("ko-KR")}원
 const getProduct = (item) => (item.product && typeof item.product === "object" ? item.product : null);
 const getOrderId = (order) => order.id || order._id || order.orderNumber;
 const getProductPathId = (item) => getProduct(item)?.productId || item.productId;
+const getReviewKey = (orderId, productId, size) => `${orderId}:${productId}:${size}`;
 
 const orderTabs = [
   { id: "ALL", label: "전체" },
   { id: "PROCESSING", label: "처리중" },
   { id: "SHIPPING", label: "배송중" },
   { id: "COMPLETED", label: "완료" },
+  { id: "CANCELED", label: "취소" },
 ];
 
 const orderStatusInfo = {
@@ -25,7 +27,7 @@ const orderStatusInfo = {
   PREPARING: { label: "처리중", className: "is-processing", Icon: Clock3, message: "상품을 준비하고 있습니다." },
   SHIPPED: { label: "배송중", className: "is-shipping", Icon: Truck, message: "상품이 배송 중입니다." },
   DELIVERED: { label: "완료", className: "is-completed", Icon: CircleCheck, message: "배송이 완료되었습니다." },
-  CANCELED: { label: "취소됨", className: "is-canceled", Icon: XCircle, message: "주문이 취소되었습니다." },
+  CANCELED: { label: "주문 취소", className: "is-canceled", Icon: XCircle, message: "주문이 취소되었습니다." },
 };
 
 const paymentMethodLabel = {
@@ -50,15 +52,24 @@ const matchesTab = (order, tab) => {
   if (tab === "ALL") return true;
   if (tab === "PROCESSING") return ["PAYMENT_PENDING", "PAID", "PREPARING"].includes(order.status);
   if (tab === "SHIPPING") return order.status === "SHIPPED";
-  return order.status === "DELIVERED";
+  if (tab === "COMPLETED") return order.status === "DELIVERED";
+  return order.status === "CANCELED";
 };
 
 function OrderHistoryPage() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("ALL");
   const [orders, setOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [expandedOrderId, setExpandedOrderId] = useState(null);
+  const [cancelingOrderId, setCancelingOrderId] = useState(null);
+  const [repurchasingOrderId, setRepurchasingOrderId] = useState(null);
+  const [reviewedItemKeys, setReviewedItemKeys] = useState(() => new Set());
+  const [reviewTarget, setReviewTarget] = useState(null);
+  const [reviewDraft, setReviewDraft] = useState({ rating: 0, content: "" });
+  const [reviewFormError, setReviewFormError] = useState("");
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -68,19 +79,30 @@ function OrderHistoryPage() {
         setIsLoading(true);
         setLoadError("");
 
-        const response = await fetch(`${apiBaseUrl}/orders`, {
-          headers: {
-            ...buildAuthHeaders(),
-          },
-        });
-        const data = await response.json().catch(() => ({}));
+        const [ordersResponse, reviewsResponse] = await Promise.all([
+          fetch(`${apiBaseUrl}/orders`, { headers: { ...buildAuthHeaders() } }),
+          fetch(`${apiBaseUrl}/reviews/mine`, { headers: { ...buildAuthHeaders() } }),
+        ]);
+        const [ordersData, reviewsData] = await Promise.all([
+          ordersResponse.json().catch(() => ({})),
+          reviewsResponse.json().catch(() => ({})),
+        ]);
 
-        if (!response.ok) {
-          throw new Error(data.message || "주문 내역을 불러오지 못했습니다.");
+        if (!ordersResponse.ok) {
+          throw new Error(ordersData.message || "주문 내역을 불러오지 못했습니다.");
+        }
+
+        if (!reviewsResponse.ok) {
+          throw new Error(reviewsData.message || "리뷰 작성 정보를 불러오지 못했습니다.");
         }
 
         if (isMounted) {
-          setOrders(Array.isArray(data.orders) ? data.orders : []);
+          setOrders(Array.isArray(ordersData.orders) ? ordersData.orders : []);
+          setReviewedItemKeys(new Set(
+            (Array.isArray(reviewsData.reviews) ? reviewsData.reviews : []).map((review) => (
+              getReviewKey(review.orderId, review.productId, review.size)
+            )),
+          ));
         }
       } catch (error) {
         if (isMounted) {
@@ -104,6 +126,135 @@ function OrderHistoryPage() {
     () => orders.filter((order) => matchesTab(order, activeTab)),
     [activeTab, orders],
   );
+
+  const closeReviewForm = () => {
+    setReviewTarget(null);
+    setReviewDraft({ rating: 0, content: "" });
+    setReviewFormError("");
+  };
+
+  const openReviewForm = (order, item) => {
+    setReviewTarget({ orderId: getOrderId(order), item });
+    setReviewDraft({ rating: 0, content: "" });
+    setReviewFormError("");
+  };
+
+  const submitReview = async (event) => {
+    event.preventDefault();
+
+    if (!reviewTarget) return;
+
+    const content = reviewDraft.content.trim();
+
+    if (!reviewDraft.rating || !content) return;
+
+    try {
+      setIsSubmittingReview(true);
+      setReviewFormError("");
+      const response = await fetch(`${apiBaseUrl}/reviews`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...buildAuthHeaders(),
+        },
+        body: JSON.stringify({
+          orderId: reviewTarget.orderId,
+          productId: getProductPathId(reviewTarget.item),
+          size: reviewTarget.item.size,
+          rating: reviewDraft.rating,
+          content,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) throw new Error(data.message || "리뷰를 등록하지 못했습니다.");
+
+      setReviewedItemKeys((currentKeys) => new Set([
+        ...currentKeys,
+        getReviewKey(reviewTarget.orderId, getProductPathId(reviewTarget.item), reviewTarget.item.size),
+      ]));
+      closeReviewForm();
+      window.alert("리뷰를 등록했습니다.");
+    } catch (error) {
+      setReviewFormError(error.message || "리뷰를 등록하지 못했습니다.");
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
+
+  const repurchaseOrder = async (order) => {
+    const orderId = getOrderId(order);
+
+    try {
+      setRepurchasingOrderId(orderId);
+      const failedMessages = [];
+      let addedItemCount = 0;
+
+      for (const item of order.items || []) {
+        const response = await fetch(`${apiBaseUrl}/cart/items`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...buildAuthHeaders(),
+          },
+          body: JSON.stringify({
+            productId: getProductPathId(item),
+            size: item.size,
+            quantity: item.quantity,
+          }),
+        });
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          failedMessages.push(data.message || `${item.productName}을 장바구니에 담지 못했습니다.`);
+        } else {
+          addedItemCount += 1;
+        }
+      }
+
+      if (addedItemCount === 0) {
+        throw new Error(failedMessages[0] || "주문 상품을 장바구니에 담지 못했습니다.");
+      }
+
+      window.dispatchEvent(new Event("stride-cart-change"));
+      if (failedMessages.length > 0) {
+        window.alert(`${addedItemCount}개 상품을 장바구니에 담았습니다.\n${failedMessages[0]}`);
+      }
+      navigate("/cart");
+    } catch (error) {
+      window.alert(error.message || "주문 상품을 장바구니에 담지 못했습니다.");
+    } finally {
+      setRepurchasingOrderId(null);
+    }
+  };
+
+  const cancelOrder = async (order) => {
+    const orderId = getOrderId(order);
+
+    if (!orderId || !window.confirm("주문 전체와 결제를 취소할까요? 취소된 결제는 되돌릴 수 없습니다.")) return;
+
+    try {
+      setCancelingOrderId(orderId);
+      const response = await fetch(`${apiBaseUrl}/orders/${encodeURIComponent(orderId)}/cancel`, {
+        method: "POST",
+        headers: {
+          ...buildAuthHeaders(),
+        },
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) throw new Error(data.message || "주문을 취소하지 못했습니다.");
+
+      setOrders((currentOrders) => currentOrders.map((currentOrder) => (
+        getOrderId(currentOrder) === orderId ? data.order : currentOrder
+      )));
+      window.alert(data.warning || "주문 취소와 환불이 완료되었습니다.");
+    } catch (error) {
+      window.alert(error.message || "주문을 취소하지 못했습니다.");
+    } finally {
+      setCancelingOrderId(null);
+    }
+  };
 
   if (!getAuthToken()) {
     return <Navigate to="/login" state={{ from: "/orders" }} replace />;
@@ -155,6 +306,15 @@ function OrderHistoryPage() {
             const statusInfo = orderStatusInfo[order.status] || orderStatusInfo.PAID;
             const StatusIcon = statusInfo.Icon;
             const isExpanded = expandedOrderId === orderId;
+            const canCancelOrder = ["PAID", "PREPARING"].includes(order.status);
+            const isCanceling = cancelingOrderId === orderId;
+            const isCompleted = order.status === "DELIVERED";
+            const pendingReviewItem = isCompleted
+              ? order.items.find((item) => !reviewedItemKeys.has(
+                getReviewKey(orderId, getProductPathId(item), item.size),
+              ))
+              : null;
+            const isRepurchasing = repurchasingOrderId === orderId;
 
             return (
               <article className="order-history-card" key={orderId}>
@@ -190,14 +350,34 @@ function OrderHistoryPage() {
 
                 <footer className="order-history-card-footer">
                   <p title={statusInfo.message}><StatusIcon size={18} strokeWidth={1.9} />{statusInfo.message}</p>
-                  <button
-                    type="button"
-                    aria-expanded={isExpanded}
-                    onClick={() => setExpandedOrderId(isExpanded ? null : orderId)}
-                  >
-                    {isExpanded ? "상세 닫기" : "주문 상세보기"}
-                    <ChevronDown className={isExpanded ? "is-open" : ""} size={18} strokeWidth={2} />
-                  </button>
+                  <div className="order-history-card-actions">
+                    {canCancelOrder && (
+                      <button className="order-history-cancel-button" type="button" disabled={isCanceling} onClick={() => cancelOrder(order)}>
+                        {isCanceling ? "취소 처리 중" : "주문 취소"}
+                      </button>
+                    )}
+                    {isCompleted && (
+                      <button className="order-history-repurchase-button" type="button" disabled={isRepurchasing} onClick={() => repurchaseOrder(order)}>
+                        <ShoppingBag size={15} strokeWidth={2} />
+                        {isRepurchasing ? "담는 중" : "재구매"}
+                      </button>
+                    )}
+                    {isCompleted && (
+                      <button className="order-history-review-button" type="button" disabled={!pendingReviewItem} onClick={() => openReviewForm(order, pendingReviewItem)}>
+                        <Star size={15} strokeWidth={2} />
+                        {pendingReviewItem ? "리뷰 작성" : "작성 완료"}
+                      </button>
+                    )}
+                    <button
+                      className="order-history-detail-button"
+                      type="button"
+                      aria-expanded={isExpanded}
+                      onClick={() => setExpandedOrderId(isExpanded ? null : orderId)}
+                    >
+                      {isExpanded ? "상세 닫기" : "주문 상세보기"}
+                      <ChevronDown className={isExpanded ? "is-open" : ""} size={18} strokeWidth={2} />
+                    </button>
+                  </div>
                 </footer>
 
                 {isExpanded && (
@@ -215,6 +395,28 @@ function OrderHistoryPage() {
           })}
         </section>
       </main>
+
+      {reviewTarget && (
+        <div className="review-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeReviewForm(); }}>
+          <form className="review-modal" aria-labelledby="review-modal-title" aria-modal="true" role="dialog" onSubmit={submitReview}>
+            <header>
+              <div><p>PRODUCT REVIEW</p><h2 id="review-modal-title">리뷰 작성</h2></div>
+              <button type="button" aria-label="리뷰 작성 닫기" title="닫기" onClick={closeReviewForm}><X size={20} strokeWidth={2} /></button>
+            </header>
+            <div className="review-modal-product">
+              <img src={getProduct(reviewTarget.item)?.cardImages?.defaultImage || reviewTarget.item.imageUrl} alt="" aria-hidden="true" />
+              <div><strong>{getProduct(reviewTarget.item)?.name || reviewTarget.item.productName}</strong><span>사이즈 {reviewTarget.item.size}</span></div>
+            </div>
+            <fieldset className="review-rating-picker">
+              <legend>별점</legend>
+              <div>{[1, 2, 3, 4, 5].map((rating) => <button type="button" aria-label={`${rating}점`} aria-pressed={reviewDraft.rating === rating} className={rating <= reviewDraft.rating ? "is-selected" : ""} key={rating} title={`${rating}점`} onClick={() => setReviewDraft((draft) => ({ ...draft, rating }))}><Star size={29} strokeWidth={1.9} /></button>)}</div>
+            </fieldset>
+            <label className="review-content-field"><span>리뷰 내용</span><textarea value={reviewDraft.content} maxLength="1000" placeholder="상품을 사용해 본 후기를 작성해주세요." onChange={(event) => setReviewDraft((draft) => ({ ...draft, content: event.target.value }))} /></label>
+            <div className="review-modal-meta"><small>{reviewDraft.content.length}/1000</small>{reviewFormError && <p role="alert">{reviewFormError}</p>}</div>
+            <footer><button type="button" onClick={closeReviewForm}>취소</button><button type="submit" disabled={isSubmittingReview || !reviewDraft.rating || !reviewDraft.content.trim()}>{isSubmittingReview ? "등록 중" : "리뷰 등록"}</button></footer>
+          </form>
+        </div>
+      )}
 
       <SiteFooter />
     </div>

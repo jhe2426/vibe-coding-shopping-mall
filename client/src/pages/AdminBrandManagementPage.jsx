@@ -177,7 +177,7 @@ function AdminBrandManagementPage() {
             <Home size={20} strokeWidth={1.9} />
             <span>HOME</span>
           </Link>
-          <Link className="admin-nav-link" to="/admin">
+          <Link className="admin-nav-link" to="/admin/members">
             <Users size={20} strokeWidth={1.9} />
             <span>회원관리</span>
           </Link>
@@ -195,11 +195,12 @@ function AdminBrandManagementPage() {
             {isProductMenuOpen && (
               <div className="admin-nav-submenu">
                 <Link to="/admin/products">상품 목록</Link>
+                <Link to="/admin/products/low-stock">재고 부족</Link>
                 <Link className="is-active" to="/admin/brands">브랜드 관리</Link>
               </div>
             )}
           </div>
-          <Link className="admin-nav-link" to="/admin">
+          <Link className="admin-nav-link" to="/admin/orders">
             <ClipboardList size={20} strokeWidth={1.9} />
             <span>주문관리</span>
           </Link>

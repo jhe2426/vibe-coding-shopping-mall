@@ -58,11 +58,6 @@ function AdminPage() {
   const [dashboard, setDashboard] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
-  const [expandedPanels, setExpandedPanels] = useState({
-    members: false,
-    orders: false,
-    stock: false,
-  });
   const [hoveredSale, setHoveredSale] = useState(null);
 
   useEffect(() => {
@@ -129,6 +124,7 @@ function AdminPage() {
     const xStart = 42;
     const yBaseline = 202;
     const lastIndex = Math.max(values.length - 1, 1);
+    const hoverWidth = graphWidth / Math.max(values.length, 1);
     const points = values.map((item, index) => ({
       ...item,
       x: xStart + ((graphWidth * index) / lastIndex),
@@ -141,6 +137,7 @@ function AdminPage() {
       linePoints: points.map((item) => `${item.x},${item.y}`).join(" "),
       yAxis: [upperBound, upperBound * 0.75, upperBound * 0.5, upperBound * 0.25, 0],
       tickIndexes,
+      hoverWidth,
     };
   }, [dashboard]);
 
@@ -209,15 +206,9 @@ function AdminPage() {
     : "월간 매출";
   const profileName = profile?.name || "관리자";
   const profileAvatar = profileName.slice(0, 2).toUpperCase();
-  const displayedMembers = dashboard?.recentMembers.slice(0, expandedPanels.members ? 20 : 5) || [];
-  const displayedOrders = dashboard?.recentOrders.slice(0, expandedPanels.orders ? 20 : 5) || [];
-  const displayedLowStockItems = dashboard?.lowStockItems.slice(0, expandedPanels.stock ? 20 : 5) || [];
-  const togglePanel = (panel) => {
-    setExpandedPanels((currentPanels) => ({
-      ...currentPanels,
-      [panel]: !currentPanels[panel],
-    }));
-  };
+  const displayedMembers = dashboard?.recentMembers.slice(0, 5) || [];
+  const displayedOrders = dashboard?.recentOrders.slice(0, 5) || [];
+  const displayedLowStockItems = dashboard?.lowStockItems.slice(0, 5) || [];
 
   return (
     <div className="admin-page">
@@ -232,7 +223,7 @@ function AdminPage() {
             <Home size={20} strokeWidth={1.9} />
             <span>HOME</span>
           </Link>
-          <Link className="admin-nav-link" to="/admin">
+          <Link className="admin-nav-link" to="/admin/members">
             <Users size={20} strokeWidth={1.9} />
             <span>회원관리</span>
           </Link>
@@ -250,11 +241,12 @@ function AdminPage() {
             {isProductMenuOpen && (
               <div className="admin-nav-submenu">
                 <Link to="/admin/products">상품 목록</Link>
+                <Link to="/admin/products/low-stock">재고 부족</Link>
                 <Link to="/admin/brands">브랜드 관리</Link>
               </div>
             )}
           </div>
-          <Link className="admin-nav-link" to="/admin">
+          <Link className="admin-nav-link" to="/admin/orders">
             <ClipboardList size={20} strokeWidth={1.9} />
             <span>주문관리</span>
           </Link>
@@ -328,9 +320,8 @@ function AdminPage() {
                 <article className="admin-panel">
                   <PanelHeader
                     title="최근 가입 회원"
-                    isExpanded={expandedPanels.members}
-                    hasMore={dashboard.recentMembers.length > 5}
-                    onMoreClick={() => togglePanel("members")}
+                    actionLabel="더보기"
+                    onActionClick={() => navigate("/admin/members")}
                   />
                   <div className="admin-table-wrap">
                     <table className="admin-table member-table">
@@ -355,7 +346,7 @@ function AdminPage() {
                   <div className="panel-heading"><h2>월간 매출 현황</h2><span className="admin-period-label">{monthLabel}</span></div>
                   <div className="chart-unit">(단위: 원)</div>
                   <div className="sales-chart" aria-label={`${monthLabel} 일별 매출액 선 그래프`}>
-                    <svg viewBox="0 0 600 260" role="img">
+                    <svg viewBox="0 0 600 260" role="img" onMouseLeave={() => setHoveredSale(null)}>
                       <title>{monthLabel} 일별 매출액 추이</title>
                       <g className="chart-grid">
                         {[42, 82, 122, 162, 202].map((y) => <line x1="42" y1={y} x2="562" y2={y} key={y} />)}
@@ -369,6 +360,26 @@ function AdminPage() {
                         ))}
                       </g>
                       {chart.linePoints && <polyline className="chart-line" points={chart.linePoints} />}
+                      <g className="chart-hit-targets" aria-hidden="true">
+                        {chart.points.map((point, index) => {
+                          const leftEdge = index === 0 ? point.x : point.x - (chart.hoverWidth / 2);
+                          const rightEdge = index === chart.points.length - 1
+                            ? point.x
+                            : point.x + (chart.hoverWidth / 2);
+
+                          return (
+                            <rect
+                              fill="transparent"
+                              height="160"
+                              key={`hit-${point.day}`}
+                              onMouseEnter={() => setHoveredSale(point)}
+                              x={leftEdge}
+                              y="42"
+                              width={Math.max(rightEdge - leftEdge, 1)}
+                            />
+                          );
+                        })}
+                      </g>
                       {chart.points.map((point) => (
                         <circle
                           aria-label={`${dashboard.monthlySales.month}/${point.day} 매출 ${formatPrice(point.amount)}`}
@@ -379,7 +390,6 @@ function AdminPage() {
                           onBlur={() => setHoveredSale(null)}
                           onFocus={() => setHoveredSale(point)}
                           onMouseEnter={() => setHoveredSale(point)}
-                          onMouseLeave={() => setHoveredSale(null)}
                           r="3.2"
                           tabIndex="0"
                         />
@@ -402,9 +412,8 @@ function AdminPage() {
                 <article className="admin-panel">
                   <PanelHeader
                     title="최근 주문"
-                    isExpanded={expandedPanels.orders}
-                    hasMore={dashboard.recentOrders.length > 5}
-                    onMoreClick={() => togglePanel("orders")}
+                    actionLabel="더보기"
+                    onActionClick={() => navigate("/admin/orders")}
                   />
                   <div className="admin-table-wrap">
                     <table className="admin-table order-table">
@@ -439,9 +448,8 @@ function AdminPage() {
                 <article className="admin-panel">
                   <PanelHeader
                     title="재고 부족 알림"
-                    isExpanded={expandedPanels.stock}
-                    hasMore={dashboard.lowStockItems.length > 5}
-                    onMoreClick={() => togglePanel("stock")}
+                    actionLabel="더보기"
+                    onActionClick={() => navigate("/admin/products/low-stock")}
                   />
                   <div className="stock-list">
                     {dashboard.lowStockItems.length === 0 ? (
@@ -464,14 +472,20 @@ function AdminPage() {
   );
 }
 
-function PanelHeader({ title, isExpanded, hasMore, onMoreClick }) {
+function PanelHeader({ title, isExpanded = false, hasMore = false, onMoreClick, onActionClick, actionLabel }) {
+  const handleActionClick = onActionClick || onMoreClick;
+  const hasAction = Boolean(actionLabel || handleActionClick);
+  const label = actionLabel || (isExpanded ? "접기" : "더보기");
+
   return (
     <div className="panel-heading">
       <h2>{title}</h2>
-      <button className="panel-more-button" type="button" disabled={!hasMore} onClick={onMoreClick}>
-        {isExpanded ? "접기" : "더보기"}
-        <ChevronRight className={isExpanded ? "is-expanded" : ""} size={15} strokeWidth={2} />
-      </button>
+      {hasAction && (
+        <button className="panel-more-button" type="button" disabled={!actionLabel && !hasMore} onClick={handleActionClick}>
+          {label}
+          <ChevronRight className={isExpanded ? "is-expanded" : ""} size={15} strokeWidth={2} />
+        </button>
+      )}
     </div>
   );
 }

@@ -10,6 +10,7 @@ import orderRouter from "./routes/order.routes.js";
 import productRouter from "./routes/product.routes.js";
 import productLikeRouter from "./routes/product-like.routes.js";
 import productQuestionRouter from "./routes/product-question.routes.js";
+import productReviewRouter from "./routes/product-review.routes.js";
 import userRouter from "./routes/user.routes.js";
 
 const app = express();
@@ -38,6 +39,7 @@ app.use("/api/likes", productLikeRouter);
 app.use("/api/orders", orderRouter);
 app.use("/api/products/:productId/questions", productQuestionRouter);
 app.use("/api/products", productRouter);
+app.use("/api/reviews", productReviewRouter);
 app.use("/api/users", userRouter);
 
 app.use((req, res) => {
@@ -58,6 +60,12 @@ app.use((err, _req, res, _next) => {
   }
 
   if (err.code === 11000) {
+    if (err.keyPattern?.order && err.keyPattern?.product && err.keyPattern?.size) {
+      return res.status(409).json({
+        message: "이미 이 상품의 리뷰를 작성했습니다.",
+      });
+    }
+
     if (err.keyPattern?.normalizedName) {
       return res.status(409).json({
         message: "이미 등록된 브랜드입니다.",

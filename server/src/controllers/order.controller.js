@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 
 import Order from "../models/order.model.js";
 import Product from "../models/product.model.js";
+import { cancelOrderWithRefund } from "../services/order-cancellation.service.js";
 import { verifyPortOnePayment } from "../services/portone.service.js";
 
 const getProductPrice = (product) => product.salePrice ?? product.regularPrice;
@@ -173,6 +174,8 @@ const applyVerifiedPayment = async ({ order, impUid, merchantUid }) => {
   const decreasedItems = await decreaseStock(order.items);
 
   try {
+    const approvedAt = payment.paid_at ? new Date(payment.paid_at * 1000) : new Date();
+
     order.status = "PAID";
     order.payment = {
       provider: "PORTONE",
@@ -182,8 +185,9 @@ const applyVerifiedPayment = async ({ order, impUid, merchantUid }) => {
       impUid,
       pgTid: payment.pg_tid || "",
       paidAmount: Number(payment.amount),
-      approvedAt: payment.paid_at ? new Date(payment.paid_at * 1000) : new Date(),
+      approvedAt,
     };
+    order.statusHistory = [...(order.statusHistory || []), { status: "PAID", changedAt: approvedAt }];
     await order.save();
     await order.populate("items.product");
     return order;
@@ -227,6 +231,24 @@ export const getOrder = async (req, res, next) => {
   }
 };
 
+// 본인 주문의 결제 취소와 재고 복원을 함께 처리합니다.
+export const cancelOrder = async (req, res, next) => {
+  try {
+    const order = await getOrderForUser(req, req.params.orderId);
+
+    if (!order) {
+      return res.status(404).json({ message: "주문을 찾을 수 없습니다." });
+    }
+
+    const { warning } = await cancelOrderWithRefund(order, "사용자 주문 취소");
+    await order.populate("items.product");
+
+    return res.json({ order, warning });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 // 결제 전 주문을 생성합니다. 상품 가격과 재고는 서버에서 다시 확인합니다.
 export const createOrder = async (req, res, next) => {
   try {
@@ -243,6 +265,7 @@ export const createOrder = async (req, res, next) => {
       discountAmount: 0,
       deliveryFee: 0,
       status: "PAYMENT_PENDING",
+      statusHistory: [{ status: "PAYMENT_PENDING", changedAt: new Date() }],
       payment: {
         provider: "PORTONE",
         method: "EXTERNAL",
@@ -291,6 +314,7 @@ export const completeOrderPayment = async (req, res, next) => {
     const decreasedItems = await decreaseStock(items);
 
     try {
+      const approvedAt = payment.paid_at ? new Date(payment.paid_at * 1000) : new Date();
       const order = await Order.create({
         orderNumber: merchantUid,
         user: req.authUser.id,
@@ -299,6 +323,7 @@ export const completeOrderPayment = async (req, res, next) => {
         discountAmount: 0,
         deliveryFee: 0,
         status: "PAID",
+        statusHistory: [{ status: "PAID", changedAt: approvedAt }],
         payment: {
           provider: "PORTONE",
           method: getPaymentMethod(payment.pay_method),
@@ -307,7 +332,7 @@ export const completeOrderPayment = async (req, res, next) => {
           impUid,
           pgTid: payment.pg_tid || "",
           paidAmount: Number(payment.amount),
-          approvedAt: payment.paid_at ? new Date(payment.paid_at * 1000) : new Date(),
+          approvedAt,
         },
       });
 
@@ -368,13 +393,16 @@ export const updateOrder = async (req, res, next) => {
     }
 
     if (isAdmin(req) && req.body.status) {
-      const allowedStatuses = ["PREPARING", "SHIPPED", "DELIVERED", "CANCELED"];
+      const allowedStatuses = ["PREPARING", "SHIPPED", "DELIVERED"];
 
       if (!allowedStatuses.includes(req.body.status)) {
         return res.status(400).json({ message: "변경할 수 없는 주문 상태입니다." });
       }
 
-      order.status = req.body.status;
+      if (order.status !== req.body.status) {
+        order.status = req.body.status;
+        order.statusHistory = [...(order.statusHistory || []), { status: req.body.status, changedAt: new Date() }];
+      }
     } else {
       if (order.status !== "PAYMENT_PENDING") {
         return res.status(400).json({ message: "결제 완료된 주문은 배송 정보를 수정할 수 없습니다." });

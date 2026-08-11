@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, ChevronRight, CircleCheck, Clock3, PackageCheck, Pencil, Truck, UserRound } from "lucide-react";
+import { ArrowRight, ChevronRight, CircleCheck, Clock3, PackageCheck, Pencil, Truck, UserRound, XCircle } from "lucide-react";
 import { Link, Navigate } from "react-router-dom";
 
 import { fetchMyProfile } from "../api/auth.js";
@@ -37,6 +37,7 @@ const orderStatus = {
   PREPARING: { label: "처리중", className: "is-processing", Icon: Clock3 },
   SHIPPED: { label: "배송중", className: "is-shipping", Icon: Truck },
   DELIVERED: { label: "완료", className: "is-completed", Icon: CircleCheck },
+  CANCELED: { label: "주문 취소", className: "is-canceled", Icon: XCircle },
 };
 
 function MyPage() {

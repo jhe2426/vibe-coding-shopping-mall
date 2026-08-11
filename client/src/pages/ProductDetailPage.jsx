@@ -40,13 +40,6 @@ const categoryKoreanLabels = {
 };
 
 const sizeGuide = [240, 245, 250, 255, 260, 265, 270, 275, 280, 285, 290, 295, 300];
-const reviews = [
-  { author: "kim***", size: 270, rating: 5, content: "발볼이 넓은 편인데 딱 맞습니다. 쿠션감도 만족스러워요." },
-  { author: "lee***", size: 260, rating: 4, content: "사이즈는 정사이즈로 구매했고 편합니다. 색상도 사진과 동일해요." },
-  { author: "park**", size: 275, rating: 5, content: "하루 종일 신어도 발이 안 피곤합니다. 재구매 의사 있어요." },
-  { author: "choi**", size: 255, rating: 5, content: "마감이 깔끔하고 어디에나 잘 어울립니다. 배송도 빨랐어요." },
-  { author: "jung*", size: 280, rating: 4, content: "생각보다 조금 크게 나온 느낌이라 반 사이즈 작게 추천합니다." },
-];
 
 const getProductPathId = (product) => product?.productId || product?.id;
 const getProductImage = (product, type = "defaultImage") => product?.cardImages?.[type] || product?.cardImages?.defaultImage || "";
@@ -72,6 +65,9 @@ function ProductDetailPage() {
   const [qnaQuestions, setQnaQuestions] = useState([]);
   const [isLoadingQna, setIsLoadingQna] = useState(false);
   const [qnaLoadError, setQnaLoadError] = useState("");
+  const [productReviews, setProductReviews] = useState([]);
+  const [isLoadingReviews, setIsLoadingReviews] = useState(false);
+  const [reviewLoadError, setReviewLoadError] = useState("");
   const [qnaFormError, setQnaFormError] = useState("");
   const [isSubmittingQna, setIsSubmittingQna] = useState(false);
   const [expandedQuestionId, setExpandedQuestionId] = useState(null);
@@ -236,6 +232,42 @@ function ProductDetailPage() {
     };
 
     loadQuestions();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedProduct]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const productId = getProductPathId(selectedProduct);
+
+    if (!productId) return () => {
+      isMounted = false;
+    };
+
+    const loadReviews = async () => {
+      try {
+        setIsLoadingReviews(true);
+        setReviewLoadError("");
+        setProductReviews([]);
+
+        const response = await fetch(`${apiBaseUrl}/reviews/products/${encodeURIComponent(productId)}`);
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(data.message || "상품 후기를 불러오지 못했습니다.");
+        }
+
+        if (isMounted) setProductReviews(Array.isArray(data.reviews) ? data.reviews : []);
+      } catch (error) {
+        if (isMounted) setReviewLoadError(error.message || "상품 후기를 불러오지 못했습니다.");
+      } finally {
+        if (isMounted) setIsLoadingReviews(false);
+      }
+    };
+
+    loadReviews();
 
     return () => {
       isMounted = false;
@@ -717,7 +749,7 @@ function ProductDetailPage() {
 
             <section className="product-info-tabs" aria-label="상품 상세 탭">
               <button className={activeDetailTab === "info" ? "is-active" : ""} type="button" onClick={() => setActiveDetailTab("info")}>상품정보</button>
-              <button className={activeDetailTab === "reviews" ? "is-active" : ""} type="button" onClick={() => setActiveDetailTab("reviews")}>상품후기 (5)</button>
+              <button className={activeDetailTab === "reviews" ? "is-active" : ""} type="button" onClick={() => setActiveDetailTab("reviews")}>상품후기 ({productReviews.length})</button>
               <button className={activeDetailTab === "qna" ? "is-active" : ""} type="button" onClick={() => setActiveDetailTab("qna")}>상품 Q&amp;A ({qnaQuestions.length})</button>
             </section>
 
@@ -731,20 +763,23 @@ function ProductDetailPage() {
 
             {activeDetailTab === "reviews" && (
               <section className="product-feedback-panel product-review-panel" aria-label="상품후기 목록">
-                <ul className="product-review-list">
-                  {reviews.map((review) => (
-                    <li className="product-review-item" key={review.author}>
+                {isLoadingReviews && <p className="product-review-message">상품 후기를 불러오는 중입니다.</p>}
+                {!isLoadingReviews && reviewLoadError && <p className="product-review-message is-error">{reviewLoadError}</p>}
+                {!isLoadingReviews && !reviewLoadError && productReviews.length === 0 && <div className="product-review-empty-state"><p>등록된 상품 후기가 없습니다.</p></div>}
+                {!isLoadingReviews && !reviewLoadError && productReviews.length > 0 && <ul className="product-review-list">
+                  {productReviews.map((review) => (
+                    <li className="product-review-item" key={review.id}>
                       <div className="product-review-meta">
                         <span className="product-review-stars" aria-label={`${review.rating}점`}>{Array.from({ length: 5 }, (_, index) => (
                           <Star className={index < review.rating ? "is-filled" : ""} key={index} size={19} strokeWidth={2.2} />
                         ))}</span>
-                        <strong>{review.author}</strong>
+                        <strong>{review.authorName}</strong>
                         <span>사이즈 {review.size}</span>
                       </div>
                       <p>{review.content}</p>
                     </li>
                   ))}
-                </ul>
+                </ul>}
               </section>
             )}
 

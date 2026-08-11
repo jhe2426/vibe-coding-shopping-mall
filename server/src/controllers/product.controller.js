@@ -73,6 +73,7 @@ const buildProductListFilter = (query) => {
 };
 
 const bulkChangeableStatuses = new Set(["SELLING", "STOPPED"]);
+const LOW_STOCK_THRESHOLD = 10;
 
 // 새 상품을 생성합니다.
 export const createProduct = async (req, res, next) => {
@@ -93,9 +94,13 @@ export const getProducts = async (req, res, next) => {
     const serializedProducts = products.map(serializeProductWithInventory);
     const filteredProducts = req.query.inventoryStatus === "SOLD_OUT"
       ? serializedProducts.filter((product) => product.inventoryStatus === "SOLD_OUT")
-      : req.query.status === "SELLING"
-        ? serializedProducts.filter((product) => product.inventoryStatus === "IN_STOCK")
-        : serializedProducts;
+      : req.query.inventoryStatus === "LOW_STOCK"
+        ? serializedProducts.filter((product) => product.sizes.some(
+          (size) => size.stockQuantity <= LOW_STOCK_THRESHOLD,
+        ))
+        : req.query.status === "SELLING"
+          ? serializedProducts.filter((product) => product.inventoryStatus === "IN_STOCK")
+          : serializedProducts;
 
     return res.json(filteredProducts);
   } catch (error) {
