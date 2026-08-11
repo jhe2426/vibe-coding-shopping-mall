@@ -26,3 +26,14 @@ export const authenticateToken = (req, res, next) => {
     });
   }
 };
+
+// 관리자 전용 조회/관리 API에서 일반 사용자의 접근을 막습니다.
+export const requireAdmin = (req, res, next) => {
+  if (req.authUser?.userType !== "admin") {
+    return res.status(403).json({
+      message: "관리자 권한이 필요합니다.",
+    });
+  }
+
+  return next();
+};

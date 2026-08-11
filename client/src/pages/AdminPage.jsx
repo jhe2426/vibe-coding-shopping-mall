@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   Bell,
@@ -11,143 +11,212 @@ import {
   Users,
   WalletCards,
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 
-import product01 from "../assets/home-products/product-01.png";
-import product02 from "../assets/home-products/product-02.png";
-import product03 from "../assets/home-products/product-03.png";
-import product04 from "../assets/home-products/product-04.png";
-import product05 from "../assets/home-products/product-05.png";
-import { clearAuthSession } from "../utils/auth-storage.js";
+import { fetchMyProfile } from "../api/auth.js";
+import { buildAuthHeaders, clearAuthSession, getAuthToken } from "../utils/auth-storage.js";
 
-const stats = [
-  {
-    id: "members",
-    label: "총 회원수",
-    value: "1,248",
-    trend: "12.5%",
-    Icon: Users,
-    tone: "blue",
-  },
-  {
-    id: "orders",
-    label: "오늘 주문",
-    value: "86",
-    trend: "8.2%",
-    Icon: ShoppingBag,
-    tone: "green",
-  },
-  {
-    id: "sales",
-    label: "오늘 매출",
-    value: "4,651,000원",
-    trend: "15.1%",
-    Icon: WalletCards,
-    tone: "amber",
-  },
-  {
-    id: "defects",
-    label: "품절 상품",
-    value: "7",
-    trend: "2",
-    Icon: AlertTriangle,
-    tone: "red",
-  },
-];
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "/api";
+const numberFormatter = new Intl.NumberFormat("ko-KR");
+const dateFormatter = new Intl.DateTimeFormat("ko-KR", {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+const orderStatus = {
+  PAYMENT_PENDING: { label: "결제 대기", tone: "gray" },
+  PAID: { label: "결제 완료", tone: "gray" },
+  PREPARING: { label: "상품 준비중", tone: "amber" },
+  SHIPPED: { label: "배송중", tone: "green" },
+  DELIVERED: { label: "배송완료", tone: "blue" },
+  CANCELED: { label: "주문 취소", tone: "red" },
+};
 
-const members = [
-  { name: "정하은", email: "jeonghaeun@stride.com", phone: "010-1111-2222", joinedAt: "2025-05-12", visits: 2 },
-  { name: "김하은", email: "haeun.kim@stride.com", phone: "010-2222-3333", joinedAt: "2025-05-11", visits: 5 },
-  { name: "김하율", email: "hayul.kim@stride.com", phone: "010-1234-2222", joinedAt: "2025-05-05", visits: 6 },
-  { name: "최린", email: "rin.choi@stride.com", phone: "010-1111-3333", joinedAt: "2025-05-03", visits: 14 },
-  { name: "이수형", email: "soohyeong.lee@stride.com", phone: "010-3444-2222", joinedAt: "2025-05-01", visits: 21 },
-];
+const formatPrice = (value) => `${numberFormatter.format(Number(value || 0))}원`;
+const formatDate = (value) => {
+  const date = new Date(value);
 
-const chartData = [0.9, 2.0, 1.9, 2.6, 3.5, 4.9, 4.0, 3.0, 2.0, 2.3, 3.3, 2.9, 3.7, 4.6, 4.4, 3.5, 3.1, 2.7, 2.1, 2.4, 2.0, 2.8, 3.6, 3.7, 4.4, 3.3, 3.4];
-const chartPolyline = chartData
-  .map((value, index) => {
-    const x = 42 + index * 20;
-    const y = 202 - value * 32;
+  return Number.isNaN(date.getTime()) ? "-" : dateFormatter.format(date);
+};
+const formatPhoneNumber = (value) => {
+  const phoneNumber = String(value || "").replace(/\D/g, "");
 
-    return `${x},${y}`;
-  })
-  .join(" ");
-
-const orders = [
-  {
-    buyer: "정하은",
-    product: "슈퍼 로우 프로 - 블랙",
-    option: "250 / 100",
-    brand: "반스",
-    price: "94,000원",
-    date: "2025-05-12",
-    status: "배송완료",
-    statusTone: "blue",
-    image: product01,
-  },
-  {
-    buyer: "김하은",
-    product: "핸드볼 스페지알",
-    option: "245 / 110",
-    brand: "아디다스",
-    price: "59,000원",
-    date: "2025-05-10",
-    status: "배송완료",
-    statusTone: "blue",
-    image: product04,
-  },
-  {
-    buyer: "김하율",
-    product: "ML408WB",
-    option: "260 / 105",
-    brand: "뉴발란스",
-    price: "99,000원",
-    date: "2025-05-05",
-    status: "배송중",
-    statusTone: "green",
-    image: product03,
-  },
-  {
-    buyer: "최린",
-    product: "우먼스 나이키 이니시에이터 NA",
-    option: "255 / 95",
-    brand: "나이키",
-    price: "69,000원",
-    date: "2025-05-03",
-    status: "배송완료",
-    statusTone: "blue",
-    image: product05,
-  },
-  {
-    buyer: "이수형",
-    product: "타르가 클럽",
-    option: "265 / 60",
-    brand: "휠라",
-    price: "39,000원",
-    date: "2025-05-01",
-    status: "결제완료",
-    statusTone: "gray",
-    image: product02,
-  },
-];
-
-const stocks = [
-  { product: "나이키 감마 포스", option: "260", brand: "나이키", count: 8, image: product05 },
-  { product: "타르가 클럽", option: "265", brand: "휠라", count: 9, image: product02 },
-  { product: "슈퍼 로우 프로 - 블랙", option: "250", brand: "반스", count: 7, image: product01 },
-  { product: "핸드볼 스페지알", option: "245", brand: "아디다스", count: 6, image: product04 },
-  { product: "우먼스 이니시에이터 NA", option: "255", brand: "나이키", count: 5, image: product03 },
-];
+  if (phoneNumber.length !== 11) return value || "-";
+  return `${phoneNumber.slice(0, 3)}-${phoneNumber.slice(3, 7)}-${phoneNumber.slice(7)}`;
+};
+const formatAxisValue = (value) => {
+  if (value >= 100_000_000) return `${Number((value / 100_000_000).toFixed(1))}억`;
+  if (value >= 10_000) return `${Number((value / 10_000).toFixed(1))}만`;
+  return numberFormatter.format(value);
+};
 
 function AdminPage() {
   const navigate = useNavigate();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isProductMenuOpen, setIsProductMenuOpen] = useState(false);
+  const [profile, setProfile] = useState(null);
+  const [dashboard, setDashboard] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [expandedPanels, setExpandedPanels] = useState({
+    members: false,
+    orders: false,
+    stock: false,
+  });
+  const [hoveredSale, setHoveredSale] = useState(null);
+
+  useEffect(() => {
+    if (!getAuthToken()) return undefined;
+
+    let isMounted = true;
+
+    const loadDashboard = async () => {
+      try {
+        setIsLoading(true);
+        setLoadError("");
+
+        const user = await fetchMyProfile();
+
+        if (!isMounted) return;
+
+        setProfile(user);
+
+        if (user.userType !== "admin") return;
+
+        const response = await fetch(`${apiBaseUrl}/admin/dashboard`, {
+          headers: {
+            ...buildAuthHeaders(),
+          },
+        });
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(data.message || "대시보드 정보를 불러오지 못했습니다.");
+        }
+
+        if (isMounted) {
+          setDashboard(data);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setLoadError(error.message || "대시보드 정보를 불러오지 못했습니다.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadDashboard();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const chart = useMemo(() => {
+    const values = dashboard?.monthlySales?.dailySales || [];
+    const highestAmount = Math.max(...values.map((item) => Number(item.amount || 0)), 0);
+    const axisStep = 500_000;
+    const minimumUpperBound = axisStep * 4;
+    const upperBound = Math.max(
+      minimumUpperBound,
+      Math.ceil(highestAmount / minimumUpperBound) * minimumUpperBound,
+    );
+    const graphWidth = 520;
+    const graphHeight = 160;
+    const xStart = 42;
+    const yBaseline = 202;
+    const lastIndex = Math.max(values.length - 1, 1);
+    const points = values.map((item, index) => ({
+      ...item,
+      x: xStart + ((graphWidth * index) / lastIndex),
+      y: yBaseline - ((Number(item.amount || 0) / upperBound) * graphHeight),
+    }));
+    const tickIndexes = [...new Set([0, 5, 10, 15, 20, values.length - 1].filter((index) => index >= 0 && index < values.length))];
+
+    return {
+      points,
+      linePoints: points.map((item) => `${item.x},${item.y}`).join(" "),
+      yAxis: [upperBound, upperBound * 0.75, upperBound * 0.5, upperBound * 0.25, 0],
+      tickIndexes,
+    };
+  }, [dashboard]);
+
+  const chartTooltip = hoveredSale
+    ? {
+      x: Math.min(Math.max(hoveredSale.x - 82, 46), 424),
+      y: Math.max(hoveredSale.y - 40, 10),
+    }
+    : null;
+
+  const stats = useMemo(() => {
+    if (!dashboard) return [];
+
+    return [
+      {
+        id: "members",
+        label: "총 회원수",
+        value: numberFormatter.format(dashboard.summary.totalMemberCount),
+        trend: dashboard.summary.trends.members,
+        Icon: Users,
+        tone: "blue",
+      },
+      {
+        id: "orders",
+        label: "오늘 주문",
+        value: numberFormatter.format(dashboard.summary.todayOrderCount),
+        trend: dashboard.summary.trends.orders,
+        Icon: ShoppingBag,
+        tone: "green",
+      },
+      {
+        id: "sales",
+        label: "오늘 매출",
+        value: formatPrice(dashboard.summary.todaySalesAmount),
+        trend: dashboard.summary.trends.sales,
+        Icon: WalletCards,
+        tone: "amber",
+      },
+      {
+        id: "sold-out",
+        label: "품절 상품",
+        value: numberFormatter.format(dashboard.summary.soldOutProductCount),
+        trend: dashboard.summary.trends.soldOut,
+        Icon: AlertTriangle,
+        tone: "red",
+      },
+    ];
+  }, [dashboard]);
 
   const handleLogout = () => {
     clearAuthSession();
     setIsProfileMenuOpen(false);
     navigate("/", { replace: true });
+  };
+
+  if (!getAuthToken()) {
+    return <Navigate to="/login" state={{ from: "/admin" }} replace />;
+  }
+
+  if (profile && profile.userType !== "admin") {
+    return <Navigate to="/" replace />;
+  }
+
+  const monthLabel = dashboard?.monthlySales
+    ? `${dashboard.monthlySales.year}년 ${dashboard.monthlySales.month}월`
+    : "월간 매출";
+  const profileName = profile?.name || "관리자";
+  const profileAvatar = profileName.slice(0, 2).toUpperCase();
+  const displayedMembers = dashboard?.recentMembers.slice(0, expandedPanels.members ? 20 : 5) || [];
+  const displayedOrders = dashboard?.recentOrders.slice(0, expandedPanels.orders ? 20 : 5) || [];
+  const displayedLowStockItems = dashboard?.lowStockItems.slice(0, expandedPanels.stock ? 20 : 5) || [];
+  const togglePanel = (panel) => {
+    setExpandedPanels((currentPanels) => ({
+      ...currentPanels,
+      [panel]: !currentPanels[panel],
+    }));
   };
 
   return (
@@ -195,11 +264,9 @@ function AdminPage() {
       <div className="admin-shell">
         <header className="admin-topbar">
           <h1>대시보드</h1>
-
           <div className="admin-topbar-actions">
             <button className="admin-icon-button" type="button" aria-label="알림">
               <Bell size={24} strokeWidth={1.8} />
-              <span>3</span>
             </button>
 
             <div
@@ -217,19 +284,16 @@ function AdminPage() {
                 aria-haspopup="menu"
                 onClick={() => setIsProfileMenuOpen((isOpen) => !isOpen)}
               >
-                <span className="admin-profile-avatar">AD</span>
-                <span className="admin-profile-label">관리자</span>
+                <span className="admin-profile-avatar">{profileAvatar}</span>
+                <span className="admin-profile-label">{profileName}</span>
                 <ChevronDown className="admin-profile-chevron" size={17} strokeWidth={2} />
               </button>
 
               {isProfileMenuOpen && (
                 <div className="admin-profile-menu" role="menu">
-                  <Link to="/" role="menuitem" onClick={() => setIsProfileMenuOpen(false)}>
-                    메인페이지
-                  </Link>
-                  <button type="button" role="menuitem" onClick={handleLogout}>
-                    로그아웃
-                  </button>
+                  <Link to="/mypage" role="menuitem" onClick={() => setIsProfileMenuOpen(false)}>마이페이지</Link>
+                  <Link to="/" role="menuitem" onClick={() => setIsProfileMenuOpen(false)}>메인페이지</Link>
+                  <button type="button" role="menuitem" onClick={handleLogout}>로그아웃</button>
                 </div>
               )}
             </div>
@@ -237,179 +301,183 @@ function AdminPage() {
         </header>
 
         <main className="admin-content">
-          <section className="admin-stats" aria-label="dashboard summary">
-            {stats.map(({ id, label, value, trend, Icon, tone }) => (
-              <article className="admin-stat-card" key={id}>
-                <div className={`admin-stat-icon ${tone}`}>
-                  <Icon size={30} strokeWidth={1.8} />
-                </div>
-                <div>
-                  <p>{label}</p>
-                  <strong>{value}</strong>
-                  <span>
-                    ▲ {trend}
-                    <small>지난 7일 대비</small>
-                  </span>
-                </div>
-              </article>
-            ))}
-          </section>
+          {isLoading && <p className="admin-dashboard-message">대시보드 정보를 불러오는 중입니다.</p>}
+          {!isLoading && loadError && <p className="admin-dashboard-message is-error">{loadError}</p>}
 
-          <section className="admin-grid admin-grid-top">
-            <article className="admin-panel">
-              <PanelHeader title="최근 가입 회원" />
-              <div className="admin-table-wrap">
-                <table className="admin-table member-table">
-                  <thead>
-                    <tr>
-                      <th>회원정보</th>
-                      <th>휴대전화</th>
-                      <th>가입일</th>
-                      <th>방문횟수</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {members.map((member) => (
-                      <tr key={member.email}>
-                        <td>{member.name} ({member.email})</td>
-                        <td>{member.phone}</td>
-                        <td>{member.joinedAt}</td>
-                        <td>{member.visits}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </article>
-
-            <article className="admin-panel sales-panel">
-              <div className="panel-heading">
-                <h2>월간 매출 현황</h2>
-                <button className="admin-select-button" type="button">
-                  2025년 5월
-                  <ChevronDown size={15} strokeWidth={2} />
-                </button>
-              </div>
-
-              <div className="chart-unit">(단위: 원)</div>
-              <div className="sales-chart" aria-label="5월 매출액 선 그래프">
-                <svg viewBox="0 0 600 260" role="img">
-                  <title>5월 일별 매출액 추이</title>
-                  <g className="chart-grid">
-                    <line x1="42" y1="42" x2="562" y2="42" />
-                    <line x1="42" y1="82" x2="562" y2="82" />
-                    <line x1="42" y1="122" x2="562" y2="122" />
-                    <line x1="42" y1="162" x2="562" y2="162" />
-                    <line x1="42" y1="202" x2="562" y2="202" />
-                  </g>
-                  <g className="chart-axis">
-                    <text x="5" y="46">5M</text>
-                    <text x="5" y="86">4M</text>
-                    <text x="5" y="126">3M</text>
-                    <text x="5" y="166">2M</text>
-                    <text x="15" y="206">0</text>
-                    <text x="42" y="236">5/1</text>
-                    <text x="142" y="236">5/6</text>
-                    <text x="242" y="236">5/11</text>
-                    <text x="342" y="236">5/16</text>
-                    <text x="442" y="236">5/21</text>
-                    <text x="542" y="236">5/31</text>
-                  </g>
-                  <polyline className="chart-line" points={chartPolyline} />
-                  {chartData.map((value, index) => (
-                    <circle
-                      className="chart-dot"
-                      cx={42 + index * 20}
-                      cy={202 - value * 32}
-                      r="2.4"
-                      key={`${value}-${index}`}
-                    />
-                  ))}
-                </svg>
-              </div>
-              <div className="chart-legend">
-                <span />
-                매출액
-              </div>
-            </article>
-          </section>
-
-          <section className="admin-grid admin-grid-bottom">
-            <article className="admin-panel">
-              <PanelHeader title="최근 주문" />
-              <div className="admin-table-wrap">
-                <table className="admin-table order-table">
-                  <thead>
-                    <tr>
-                      <th>구매자</th>
-                      <th>상품정보</th>
-                      <th>브랜드</th>
-                      <th>결제금액</th>
-                      <th>구매날짜</th>
-                      <th>주문상태</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {orders.map((order) => (
-                      <tr key={`${order.buyer}-${order.product}`}>
-                        <td>{order.buyer}</td>
-                        <td>
-                          <div className="order-product">
-                            <img src={order.image} alt="" aria-hidden="true" />
-                            <div>
-                              <strong>{order.product}</strong>
-                              <span>{order.option}</span>
-                            </div>
-                          </div>
-                        </td>
-                        <td>{order.brand}</td>
-                        <td>{order.price}</td>
-                        <td>{order.date}</td>
-                        <td>
-                          <span className={`order-status ${order.statusTone}`}>{order.status}</span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </article>
-
-            <article className="admin-panel">
-              <PanelHeader title="재고 부족 알림" />
-              <div className="stock-list">
-                {stocks.map((stock) => (
-                  <div className="stock-item" key={`${stock.product}-${stock.option}`}>
-                    <img src={stock.image} alt="" aria-hidden="true" />
+          {!isLoading && !loadError && dashboard && (
+            <>
+              <section className="admin-stats" aria-label="dashboard summary">
+                {stats.map(({ id, label, value, trend, Icon, tone }) => (
+                  <article className="admin-stat-card" key={id}>
+                    <div className={`admin-stat-icon ${tone}`}><Icon size={30} strokeWidth={1.8} /></div>
                     <div>
-                      <strong>{stock.product}</strong>
-                      <span>
-                        {stock.option}
-                        <small>{stock.brand}</small>
+                      <p>{label}</p>
+                      <strong>{value}</strong>
+                      <span className={`is-${trend.direction}`}>
+                        {trend.direction === "up" && "▲ "}
+                        {trend.direction === "down" && "▼ "}
+                        {trend.label}
+                        {trend.description && <small>{trend.description}</small>}
                       </span>
                     </div>
-                    <b>재고 {stock.count}개</b>
-                  </div>
+                  </article>
                 ))}
-              </div>
-            </article>
-          </section>
+              </section>
+
+              <section className="admin-grid admin-grid-top">
+                <article className="admin-panel">
+                  <PanelHeader
+                    title="최근 가입 회원"
+                    isExpanded={expandedPanels.members}
+                    hasMore={dashboard.recentMembers.length > 5}
+                    onMoreClick={() => togglePanel("members")}
+                  />
+                  <div className="admin-table-wrap">
+                    <table className="admin-table member-table">
+                      <thead><tr><th>회원정보</th><th>휴대전화</th><th>가입일</th><th>저장 배송지</th></tr></thead>
+                      <tbody>
+                        {dashboard.recentMembers.length === 0 ? (
+                          <EmptyTableRow columns={4} message="최근 가입한 회원이 없습니다." />
+                        ) : displayedMembers.map((member) => (
+                          <tr key={member.id}>
+                            <td>{member.name} ({member.email})</td>
+                            <td>{formatPhoneNumber(member.phoneNumber)}</td>
+                            <td>{formatDate(member.createdAt)}</td>
+                            <td>{member.deliveryAddressCount}개</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </article>
+
+                <article className="admin-panel sales-panel">
+                  <div className="panel-heading"><h2>월간 매출 현황</h2><span className="admin-period-label">{monthLabel}</span></div>
+                  <div className="chart-unit">(단위: 원)</div>
+                  <div className="sales-chart" aria-label={`${monthLabel} 일별 매출액 선 그래프`}>
+                    <svg viewBox="0 0 600 260" role="img">
+                      <title>{monthLabel} 일별 매출액 추이</title>
+                      <g className="chart-grid">
+                        {[42, 82, 122, 162, 202].map((y) => <line x1="42" y1={y} x2="562" y2={y} key={y} />)}
+                      </g>
+                      <g className="chart-axis">
+                        {chart.yAxis.map((value, index) => <text x="5" y={46 + (index * 40)} key={`${value}-${index}`}>{formatAxisValue(value)}</text>)}
+                        {chart.tickIndexes.map((index) => (
+                          <text x={chart.points[index].x} y="236" textAnchor="middle" key={index}>
+                            {dashboard.monthlySales.month}/{chart.points[index].day}
+                          </text>
+                        ))}
+                      </g>
+                      {chart.linePoints && <polyline className="chart-line" points={chart.linePoints} />}
+                      {chart.points.map((point) => (
+                        <circle
+                          aria-label={`${dashboard.monthlySales.month}/${point.day} 매출 ${formatPrice(point.amount)}`}
+                          className="chart-dot"
+                          cx={point.x}
+                          cy={point.y}
+                          key={point.day}
+                          onBlur={() => setHoveredSale(null)}
+                          onFocus={() => setHoveredSale(point)}
+                          onMouseEnter={() => setHoveredSale(point)}
+                          onMouseLeave={() => setHoveredSale(null)}
+                          r="3.2"
+                          tabIndex="0"
+                        />
+                      ))}
+                      {hoveredSale && chartTooltip && (
+                        <g className="chart-tooltip" pointerEvents="none" transform={`translate(${chartTooltip.x} ${chartTooltip.y})`}>
+                          <rect height="29" rx="5" width="164" />
+                          <text textAnchor="middle" x="82" y="19">
+                            {dashboard.monthlySales.month}/{hoveredSale.day} · {formatPrice(hoveredSale.amount)}
+                          </text>
+                        </g>
+                      )}
+                    </svg>
+                  </div>
+                  <div className="chart-legend"><span />매출액</div>
+                </article>
+              </section>
+
+              <section className="admin-grid admin-grid-bottom">
+                <article className="admin-panel">
+                  <PanelHeader
+                    title="최근 주문"
+                    isExpanded={expandedPanels.orders}
+                    hasMore={dashboard.recentOrders.length > 5}
+                    onMoreClick={() => togglePanel("orders")}
+                  />
+                  <div className="admin-table-wrap">
+                    <table className="admin-table order-table">
+                      <thead><tr><th>구매자</th><th>상품정보</th><th>브랜드</th><th>결제금액</th><th>구매날짜</th><th>주문상태</th></tr></thead>
+                      <tbody>
+                        {dashboard.recentOrders.length === 0 ? (
+                          <EmptyTableRow columns={6} message="최근 주문이 없습니다." />
+                        ) : displayedOrders.map((order) => {
+                          const statusInfo = orderStatus[order.status] || orderStatus.PAID;
+
+                          return (
+                            <tr key={order.id}>
+                              <td>{order.buyerName}</td>
+                              <td>
+                                <div className="order-product">
+                                  <img src={order.imageUrl} alt="" aria-hidden="true" />
+                                  <div><strong>{order.productName}</strong><span>{order.size || "-"} / {order.quantity}개</span></div>
+                                </div>
+                              </td>
+                              <td>{order.brand}</td>
+                              <td>{formatPrice(order.totalAmount)}</td>
+                              <td>{formatDate(order.createdAt)}</td>
+                              <td><span className={`order-status ${statusInfo.tone}`}>{statusInfo.label}</span></td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </article>
+
+                <article className="admin-panel">
+                  <PanelHeader
+                    title="재고 부족 알림"
+                    isExpanded={expandedPanels.stock}
+                    hasMore={dashboard.lowStockItems.length > 5}
+                    onMoreClick={() => togglePanel("stock")}
+                  />
+                  <div className="stock-list">
+                    {dashboard.lowStockItems.length === 0 ? (
+                      <p className="admin-stock-empty">재고 부족 상품이 없습니다.</p>
+                    ) : displayedLowStockItems.map((stock) => (
+                      <div className="stock-item" key={`${stock.productId}-${stock.size}`}>
+                        <img src={stock.imageUrl} alt="" aria-hidden="true" />
+                        <div><strong>{stock.name}</strong><span>{stock.size}<small>{stock.brand}</small></span></div>
+                        <b>재고 {stock.stockQuantity}개</b>
+                      </div>
+                    ))}
+                  </div>
+                </article>
+              </section>
+            </>
+          )}
         </main>
       </div>
     </div>
   );
 }
 
-function PanelHeader({ title }) {
+function PanelHeader({ title, isExpanded, hasMore, onMoreClick }) {
   return (
     <div className="panel-heading">
       <h2>{title}</h2>
-      <button className="panel-more-button" type="button">
-        더보기
-        <ChevronRight size={15} strokeWidth={2} />
+      <button className="panel-more-button" type="button" disabled={!hasMore} onClick={onMoreClick}>
+        {isExpanded ? "접기" : "더보기"}
+        <ChevronRight className={isExpanded ? "is-expanded" : ""} size={15} strokeWidth={2} />
       </button>
     </div>
   );
+}
+
+function EmptyTableRow({ columns, message }) {
+  return <tr><td className="admin-table-empty" colSpan={columns}>{message}</td></tr>;
 }
 
 export default AdminPage;

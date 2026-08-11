@@ -28,13 +28,28 @@ const toCart = (items) => ({
 });
 
 const saveItems = (items) => {
-  localStorage.setItem(GUEST_CART_KEY, JSON.stringify(items));
+  sessionStorage.setItem(GUEST_CART_KEY, JSON.stringify(items));
   return toCart(items);
+};
+
+const getStoredGuestCartItems = () => {
+  const sessionItems = sessionStorage.getItem(GUEST_CART_KEY);
+
+  if (sessionItems !== null) return sessionItems;
+
+  // 기존에 localStorage에 저장된 비회원 장바구니는 한 번만 현재 세션으로 옮깁니다.
+  const legacyItems = localStorage.getItem(GUEST_CART_KEY);
+
+  if (legacyItems === null) return "[]";
+
+  sessionStorage.setItem(GUEST_CART_KEY, legacyItems);
+  localStorage.removeItem(GUEST_CART_KEY);
+  return legacyItems;
 };
 
 export const getGuestCart = () => {
   try {
-    const storedItems = JSON.parse(localStorage.getItem(GUEST_CART_KEY) || "[]");
+    const storedItems = JSON.parse(getStoredGuestCartItems());
 
     if (!Array.isArray(storedItems)) {
       return toCart([]);
@@ -135,6 +150,7 @@ export const deleteGuestCartItem = (itemId) => {
 };
 
 export const clearGuestCart = () => {
+  sessionStorage.removeItem(GUEST_CART_KEY);
   localStorage.removeItem(GUEST_CART_KEY);
   return toCart([]);
 };

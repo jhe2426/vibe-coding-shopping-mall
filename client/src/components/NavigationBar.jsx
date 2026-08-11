@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Heart, Search, ShoppingBag } from "lucide-react";
+import { Heart, Search, ShoppingBag, UserRound } from "lucide-react";
 
 import { WISHLIST_CHANGE_EVENT, fetchProductLikes } from "../api/product-likes.js";
 import { fetchMyProfile } from "../api/auth.js";
@@ -16,6 +16,7 @@ function NavigationBar() {
   const [currentUser, setCurrentUser] = useState(null);
   const [cartItemCount, setCartItemCount] = useState(0);
   const [wishlistItemCount, setWishlistItemCount] = useState(0);
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
 
   // 저장된 JWT 토큰으로 현재 유저 정보를 조회해 관리자/일반 유저 메뉴를 구분합니다.
   useEffect(() => {
@@ -123,22 +124,19 @@ function NavigationBar() {
     setCurrentUser(null);
     setCartItemCount(0);
     setWishlistItemCount(0);
+    setIsAccountMenuOpen(false);
     navigate("/", { replace: true });
   };
 
-  const accountMenuLabel = currentUser?.userType === "admin" ? "관리자페이지" : "마이페이지";
-  const accountMenuPath = currentUser?.userType === "admin" ? "/admin" : "/mypage";
+  const isAdmin = currentUser?.userType === "admin";
 
   return (
     <header className="site-header-shell">
-      <div className="header-user-bar" aria-label="user navigation">
+      <div className="header-user-bar" aria-label="사용자 메뉴">
         {isLoggedIn ? (
           <>
             {currentUser?.name && <span className="header-user-greeting">반갑습니다, {currentUser.name}님</span>}
-            <Link to={accountMenuPath}>{accountMenuLabel}</Link>
-            <button type="button" onClick={handleLogout}>
-              로그아웃
-            </button>
+            <button className="header-user-logout" type="button" onClick={handleLogout}>로그아웃</button>
           </>
         ) : (
           <>
@@ -180,6 +178,42 @@ function NavigationBar() {
             <ShoppingBag size={25} strokeWidth={1.8} />
             {cartItemCount > 0 && <span>{cartItemCount}</span>}
           </button>
+
+          <div
+            className="header-account-menu-wrap"
+            onBlur={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget)) {
+                setIsAccountMenuOpen(false);
+              }
+            }}
+          >
+            <button
+              className="header-account-button"
+              type="button"
+              aria-label={isLoggedIn ? "내 계정 메뉴" : "로그인"}
+              aria-expanded={isLoggedIn ? isAccountMenuOpen : undefined}
+              aria-haspopup={isLoggedIn ? "menu" : undefined}
+              title={isLoggedIn ? "내 계정" : "로그인"}
+              onClick={() => {
+                if (!isLoggedIn) {
+                  navigate("/login");
+                  return;
+                }
+
+                setIsAccountMenuOpen((isOpen) => !isOpen);
+              }}
+            >
+              <UserRound size={25} strokeWidth={1.8} />
+            </button>
+
+            {isLoggedIn && isAccountMenuOpen && (
+              <div className="header-account-menu" role="menu">
+                <Link to="/mypage" role="menuitem" onClick={() => setIsAccountMenuOpen(false)}>마이페이지</Link>
+                {isAdmin && <Link to="/admin" role="menuitem" onClick={() => setIsAccountMenuOpen(false)}>관리자페이지</Link>}
+                <button type="button" role="menuitem" onClick={handleLogout}>로그아웃</button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </header>

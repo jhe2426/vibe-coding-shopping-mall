@@ -3,6 +3,7 @@ import express from "express";
 import morgan from "morgan";
 
 import authRouter from "./routes/auth.routes.js";
+import adminRouter from "./routes/admin.routes.js";
 import brandRouter from "./routes/brand.routes.js";
 import cartRouter from "./routes/cart.routes.js";
 import orderRouter from "./routes/order.routes.js";
@@ -30,6 +31,7 @@ app.get("/", (_req, res) => {
 });
 
 app.use("/api/auth", authRouter);
+app.use("/api/admin", adminRouter);
 app.use("/api/brands", brandRouter);
 app.use("/api/cart", cartRouter);
 app.use("/api/likes", productLikeRouter);

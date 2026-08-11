@@ -1,5 +1,5 @@
 import { Check } from "lucide-react";
-import { Navigate, useLocation } from "react-router-dom";
+import { Link, Navigate, useLocation } from "react-router-dom";
 
 import CheckoutSteps from "../components/CheckoutSteps.jsx";
 import NavigationBar from "../components/NavigationBar.jsx";
@@ -64,7 +64,7 @@ function OrderCompletePage() {
             })}
           </div>
         </section>
-        <div className="order-complete-actions"><a href="/">메인으로 이동</a><button type="button">주문 내역 확인</button></div>
+        <div className="order-complete-actions"><Link to="/">메인으로 이동</Link><Link to="/orders">주문 내역 확인</Link></div>
       </main>
       <SiteFooter />
     </div>
