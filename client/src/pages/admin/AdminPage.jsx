@@ -13,8 +13,8 @@ import {
 } from "lucide-react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 
-import { fetchMyProfile } from "../api/auth.js";
-import { buildAuthHeaders, clearAuthSession, getAuthToken } from "../utils/auth-storage.js";
+import { fetchMyProfile } from "../../api/auth.js";
+import { buildAuthHeaders, clearAuthSession, getAuthToken } from "../../utils/auth-storage.js";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "/api";
 const numberFormatter = new Intl.NumberFormat("ko-KR");

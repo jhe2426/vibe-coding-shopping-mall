@@ -15,8 +15,8 @@ const restoreOrderStock = async (items) => Promise.all(items.map((item) => Produ
 )));
 
 // 포트원 환불 성공 이후에만 주문을 취소 상태로 확정하고 재고를 복원합니다.
-export const cancelOrderWithRefund = async (order, reason) => {
-  if (!cancellableOrderStatuses.has(order.status)) {
+export const cancelOrderWithRefund = async (order, reason, { allowedOrderStatuses = cancellableOrderStatuses } = {}) => {
+  if (!allowedOrderStatuses.has(order.status)) {
     throw createCancellationError("배송 시작 전까지 주문을 취소할 수 있습니다.", 400);
   }
 

@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
-import { clearAuthSession } from "../utils/auth-storage.js";
+import { buildAuthHeaders, clearAuthSession } from "../../utils/auth-storage.js";
 
 const initialSizes = [{ id: "size-option-0", size: "", quantity: "" }];
 
@@ -256,6 +256,7 @@ function AdminProductCreatePage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...buildAuthHeaders(),
         },
         body: JSON.stringify({ name: brandName }),
       });
@@ -342,6 +343,7 @@ function AdminProductCreatePage() {
         method: isEditMode ? "PUT" : "POST",
         headers: {
           "Content-Type": "application/json",
+          ...buildAuthHeaders(),
         },
         body: JSON.stringify(productPayload),
       });

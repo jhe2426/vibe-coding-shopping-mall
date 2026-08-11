@@ -9,11 +9,8 @@ const DAY_IN_MILLISECONDS = 24 * 60 * 60 * 1000;
 const DEFAULT_PAGE_SIZE = 10;
 const MAX_PAGE_SIZE = 50;
 const orderStatuses = ["PAYMENT_PENDING", "PAID", "PREPARING", "SHIPPED", "DELIVERED", "CANCELED"];
-const statusTransitions = {
-  PAID: ["PREPARING"],
-  PREPARING: ["SHIPPED"],
-  SHIPPED: ["DELIVERED"],
-};
+const adminEditableStatuses = ["PAID", "PREPARING", "SHIPPED", "DELIVERED"];
+const adminCancellableStatuses = new Set(["PAID", "PREPARING"]);
 const koreanDateFormatter = new Intl.DateTimeFormat("en-US", {
   timeZone: KOREA_TIME_ZONE,
   year: "numeric",
@@ -44,6 +41,14 @@ const createKoreanMidnight = (year, month, day) => new Date(
 const getAdminOrderDocument = (orderId) => Order.findById(orderId)
   .populate("user", "name userId phoneNumber")
   .populate("items.product", "brand");
+
+const getAdminStatusOptions = (order) => {
+  if (order.status === "CANCELED" || order.payment?.status !== "PAID") {
+    return [order.status];
+  }
+
+  return adminEditableStatuses;
+};
 
 const parseKoreanDate = (value) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) return null;
@@ -114,7 +119,7 @@ const serializeOrderDetail = (order) => {
     createdAt: order.createdAt,
     updatedAt: order.updatedAt,
     status: order.status,
-    allowedNextStatuses: statusTransitions[order.status] || [],
+    allowedNextStatuses: getAdminStatusOptions(order),
     items: (order.items || []).map((item) => ({
       productId: item.productId,
       productName: item.productName,
@@ -263,8 +268,8 @@ export const updateAdminOrderStatus = async (req, res, next) => {
       return res.json({ order: serializeOrderDetail(order.toObject()) });
     }
 
-    if (!statusTransitions[order.status]?.includes(nextStatus)) {
-      return res.status(400).json({ message: "현재 주문 상태에서 변경할 수 없는 상태입니다." });
+    if (!getAdminStatusOptions(order).includes(nextStatus)) {
+      return res.status(400).json({ message: "결제 완료된 주문의 상태만 변경할 수 있습니다." });
     }
 
     order.status = nextStatus;
@@ -321,7 +326,9 @@ export const cancelAdminOrder = async (req, res, next) => {
       return res.status(404).json({ message: "주문을 찾을 수 없습니다." });
     }
 
-    const { warning } = await cancelOrderWithRefund(order, "관리자 주문 취소");
+    const { warning } = await cancelOrderWithRefund(order, "관리자 주문 취소", {
+      allowedOrderStatuses: adminCancellableStatuses,
+    });
 
     return res.json({
       order: serializeOrderDetail(order.toObject()),

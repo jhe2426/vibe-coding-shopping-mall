@@ -16,8 +16,8 @@ import {
 } from "lucide-react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 
-import { fetchMyProfile } from "../api/auth.js";
-import { buildAuthHeaders, clearAuthSession, getAuthToken } from "../utils/auth-storage.js";
+import { fetchMyProfile } from "../../api/auth.js";
+import { buildAuthHeaders, clearAuthSession, getAuthToken } from "../../utils/auth-storage.js";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "/api";
 const numberFormatter = new Intl.NumberFormat("ko-KR");
@@ -153,6 +153,33 @@ function AdminOrderDetailPage() {
     }
   };
 
+  const cancelOrder = async () => {
+    if (!order) return;
+
+    const shouldCancel = window.confirm("정말 주문을 취소하시겠습니까?\n결제 취소 후에는 되돌릴 수 없습니다.");
+
+    if (!shouldCancel) return;
+
+    try {
+      setIsCancelingOrder(true);
+      const response = await fetch(`${apiBaseUrl}/admin/orders/${order.id}/cancel`, {
+        method: "POST",
+        headers: { ...buildAuthHeaders() },
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) throw new Error(data.message || "주문을 취소하지 못했습니다.");
+
+      setOrder(data.order);
+      setSelectedStatus(data.order.status);
+      window.alert(data.warning || "결제와 주문을 취소했습니다.");
+    } catch (error) {
+      window.alert(error.message || "주문을 취소하지 못했습니다.");
+    } finally {
+      setIsCancelingOrder(false);
+    }
+  };
+
   const saveAdminMemo = async (event) => {
     event.preventDefault();
 
@@ -186,37 +213,15 @@ function AdminOrderDetailPage() {
     }
   };
 
-  const cancelOrder = async () => {
-    if (!order || !window.confirm("결제를 취소하고 주문을 취소할까요? 취소된 결제는 되돌릴 수 없습니다.")) return;
-
-    try {
-      setIsCancelingOrder(true);
-      const response = await fetch(`${apiBaseUrl}/admin/orders/${order.id}/cancel`, {
-        method: "POST",
-        headers: { ...buildAuthHeaders() },
-      });
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) throw new Error(data.message || "주문을 취소하지 못했습니다.");
-
-      setOrder(data.order);
-      setSelectedStatus(data.order.status);
-      window.alert(data.warning || "결제와 주문을 취소했습니다.");
-    } catch (error) {
-      window.alert(error.message || "주문을 취소하지 못했습니다.");
-    } finally {
-      setIsCancelingOrder(false);
-    }
-  };
-
   if (!getAuthToken()) return <Navigate to="/login" state={{ from: `/admin/orders/${orderId}` }} replace />;
   if (!isProfileLoading && (!profile || profile.userType !== "admin")) return <Navigate to="/" replace />;
 
   const profileName = profile?.name || "관리자";
   const profileAvatar = profileName.slice(0, 2).toUpperCase();
   const currentStatusInfo = orderStatusInfo[order?.status] || orderStatusInfo.PAYMENT_PENDING;
-  const statusOptions = order ? [order.status, ...(order.allowedNextStatuses || [])] : [];
-  const canCancelOrder = ["PAID", "PREPARING"].includes(order?.status);
+  const statusOptions = order?.allowedNextStatuses || [];
+  const canCancelOrder = ["PAID", "PREPARING"].includes(order?.status)
+    && order?.payment?.status === "PAID";
 
   return (
     <div className="admin-page">
@@ -252,7 +257,7 @@ function AdminOrderDetailPage() {
               <section><h2>결제 정보</h2><dl className="admin-order-payment-list"><div><dt>상품 금액</dt><dd>{formatPrice(order.productAmount)}</dd></div><div><dt>할인 금액</dt><dd className={order.discountAmount > 0 ? "is-discount" : ""}>{order.discountAmount > 0 ? `-${formatPrice(order.discountAmount)}` : formatPrice(0)}</dd></div><div><dt>배송비</dt><dd>{formatPrice(order.deliveryFee)}</dd></div><div className="is-total"><dt>결제 금액</dt><dd>{formatPrice(order.totalAmount)}</dd></div><div><dt>결제 수단</dt><dd>{paymentMethodLabel[order.payment.method] || "외부 결제"}</dd></div><div><dt>결제 상태</dt><dd>{order.payment.status === "PAID" ? "결제 완료" : order.payment.status === "CANCELED" ? "결제 취소" : "결제 대기"}</dd></div></dl></section>
               <section><h2>구매자 정보</h2><dl><div><dt>이름</dt><dd>{order.buyer.name}</dd></div><div><dt>연락처</dt><dd>{order.buyer.phoneNumber || "-"}</dd></div><div><dt>이메일</dt><dd>{order.buyer.email || "-"}</dd></div></dl></section>
               <section><h2>배송지 정보</h2><dl><div><dt>받는 사람</dt><dd>{order.delivery.recipientName || "-"}</dd></div><div><dt>연락처</dt><dd>{order.delivery.phoneNumber || "-"}</dd></div><div><dt>우편번호</dt><dd>{order.delivery.postalCode || "-"}</dd></div><div><dt>주소</dt><dd>{[order.delivery.address, order.delivery.addressDetail].filter(Boolean).join(" ") || "-"}</dd></div></dl></section>
-              <div className="admin-order-cancel-action"><button type="button" disabled={!canCancelOrder || isCancelingOrder} onClick={cancelOrder}><XCircle size={17} strokeWidth={2} />{isCancelingOrder ? "취소 처리 중" : "주문 취소"}</button></div>
+              {canCancelOrder && <div className="admin-order-cancel-action"><button type="button" disabled={isCancelingOrder} onClick={cancelOrder}><XCircle size={17} strokeWidth={2} />{isCancelingOrder ? "취소 처리 중" : "주문 취소"}</button></div>}
             </aside>
           </div>}
         </main>

@@ -163,9 +163,11 @@ function NavigationBar() {
         </nav>
 
         <div className="header-actions" aria-label="shop actions">
-          <button type="button" aria-label="검색">
-            <Search size={25} strokeWidth={1.8} />
-          </button>
+          {isLoggedIn && (
+            <button type="button" aria-label="검색">
+              <Search size={25} strokeWidth={1.8} />
+            </button>
+          )}
 
           {isLoggedIn && (
             <button className="wishlist-nav-button" type="button" aria-label="찜한 상품" onClick={() => navigate("/wishlist")}>
@@ -179,41 +181,36 @@ function NavigationBar() {
             {cartItemCount > 0 && <span>{cartItemCount}</span>}
           </button>
 
-          <div
-            className="header-account-menu-wrap"
-            onBlur={(event) => {
-              if (!event.currentTarget.contains(event.relatedTarget)) {
-                setIsAccountMenuOpen(false);
-              }
-            }}
-          >
-            <button
-              className="header-account-button"
-              type="button"
-              aria-label={isLoggedIn ? "내 계정 메뉴" : "로그인"}
-              aria-expanded={isLoggedIn ? isAccountMenuOpen : undefined}
-              aria-haspopup={isLoggedIn ? "menu" : undefined}
-              title={isLoggedIn ? "내 계정" : "로그인"}
-              onClick={() => {
-                if (!isLoggedIn) {
-                  navigate("/login");
-                  return;
+          {isLoggedIn && (
+            <div
+              className="header-account-menu-wrap"
+              onBlur={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget)) {
+                  setIsAccountMenuOpen(false);
                 }
-
-                setIsAccountMenuOpen((isOpen) => !isOpen);
               }}
             >
-              <UserRound size={25} strokeWidth={1.8} />
-            </button>
+              <button
+                className="header-account-button"
+                type="button"
+                aria-label="내 계정 메뉴"
+                aria-expanded={isAccountMenuOpen}
+                aria-haspopup="menu"
+                title="내 계정"
+                onClick={() => setIsAccountMenuOpen((isOpen) => !isOpen)}
+              >
+                <UserRound size={25} strokeWidth={1.8} />
+              </button>
 
-            {isLoggedIn && isAccountMenuOpen && (
+              {isAccountMenuOpen && (
               <div className="header-account-menu" role="menu">
                 <Link to="/mypage" role="menuitem" onClick={() => setIsAccountMenuOpen(false)}>마이페이지</Link>
                 {isAdmin && <Link to="/admin" role="menuitem" onClick={() => setIsAccountMenuOpen(false)}>관리자페이지</Link>}
                 <button type="button" role="menuitem" onClick={handleLogout}>로그아웃</button>
               </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </header>

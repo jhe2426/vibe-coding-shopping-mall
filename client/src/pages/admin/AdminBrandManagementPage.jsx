@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
-import { clearAuthSession } from "../utils/auth-storage.js";
+import { buildAuthHeaders, clearAuthSession } from "../../utils/auth-storage.js";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "/api";
 
@@ -134,7 +134,7 @@ function AdminBrandManagementPage() {
         isEditing ? `${apiBaseUrl}/brands/${brandDraft.id}` : `${apiBaseUrl}/brands`,
         {
           method: isEditing ? "PUT" : "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...buildAuthHeaders() },
           body: JSON.stringify({ name, categories: brandDraft.categories }),
         },
       );

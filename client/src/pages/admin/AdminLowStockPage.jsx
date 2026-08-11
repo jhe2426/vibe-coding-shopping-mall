@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
-import { clearAuthSession } from "../utils/auth-storage.js";
+import { clearAuthSession } from "../../utils/auth-storage.js";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "/api";
 const LOW_STOCK_THRESHOLD = 10;

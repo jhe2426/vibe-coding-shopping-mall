@@ -6,13 +6,13 @@ import {
   getProductQuestionDetail,
   getProductQuestions,
 } from "../controllers/product-question.controller.js";
-import { authenticateToken } from "../middlewares/auth.middleware.js";
+import { authenticateToken, requireAdmin } from "../middlewares/auth.middleware.js";
 
 const router = Router({ mergeParams: true });
 
 router.get("/", getProductQuestions);
 router.post("/", authenticateToken, createProductQuestion);
-router.post("/:questionId/replies", authenticateToken, createProductQuestionReply);
+router.post("/:questionId/replies", authenticateToken, requireAdmin, createProductQuestionReply);
 router.get("/:questionId", authenticateToken, getProductQuestionDetail);
 
 export default router;

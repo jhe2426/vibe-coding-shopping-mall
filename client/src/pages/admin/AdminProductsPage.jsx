@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
-import { clearAuthSession } from "../utils/auth-storage.js";
+import { buildAuthHeaders, clearAuthSession } from "../../utils/auth-storage.js";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "/api";
 
@@ -206,6 +206,7 @@ function AdminProductsPage() {
       setDeletingProductId(product.id);
       const response = await fetch(`${apiBaseUrl}/products/${product.id}`, {
         method: "DELETE",
+        headers: { ...buildAuthHeaders() },
       });
 
       if (!response.ok) {
@@ -320,7 +321,7 @@ function AdminProductsPage() {
       setBulkStatusUpdate(status);
       const response = await fetch(`${apiBaseUrl}/products/bulk-status`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...buildAuthHeaders() },
         body: JSON.stringify({ productIds: selectedProductIds, status }),
       });
       const result = await response.json().catch(() => ({}));

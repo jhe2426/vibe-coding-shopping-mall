@@ -13,16 +13,11 @@ const buildOrderFilter = (orderId) => (
   mongoose.isValidObjectId(orderId) ? { _id: orderId } : { orderNumber: orderId }
 );
 
-const isAdmin = (req) => req.authUser.userType === "admin";
-
 const getOrderForUser = (req, orderId) => {
-  const filter = buildOrderFilter(orderId);
-
-  if (!isAdmin(req)) {
-    filter.user = req.authUser.id;
-  }
-
-  return Order.findOne(filter).populate("items.product");
+  return Order.findOne({
+    ...buildOrderFilter(orderId),
+    user: req.authUser.id,
+  }).populate("items.product");
 };
 
 const getExistingPaymentOrder = (impUid, merchantUid) => Order.findOne({
@@ -197,10 +192,10 @@ const applyVerifiedPayment = async ({ order, impUid, merchantUid }) => {
   }
 };
 
-// 로그인한 사용자의 주문 목록을 조회합니다. 관리자는 전체 주문을 조회할 수 있습니다.
+// 고객용 주문 API는 역할과 무관하게 로그인한 사용자의 주문만 조회합니다.
 export const getOrders = async (req, res, next) => {
   try {
-    const filter = isAdmin(req) ? {} : { user: req.authUser.id };
+    const filter = { user: req.authUser.id };
 
     if (req.query.status) {
       filter.status = req.query.status;
@@ -383,7 +378,7 @@ export const handlePortOnePaymentWebhook = async (req, res, next) => {
   }
 };
 
-// 결제 전에는 배송 정보를 수정할 수 있고, 관리자는 주문 진행 상태를 변경할 수 있습니다.
+// 고객용 주문 API에서는 결제 전 배송 정보만 수정할 수 있습니다.
 export const updateOrder = async (req, res, next) => {
   try {
     const order = await getOrderForUser(req, req.params.orderId);
@@ -392,24 +387,11 @@ export const updateOrder = async (req, res, next) => {
       return res.status(404).json({ message: "주문을 찾을 수 없습니다." });
     }
 
-    if (isAdmin(req) && req.body.status) {
-      const allowedStatuses = ["PREPARING", "SHIPPED", "DELIVERED"];
-
-      if (!allowedStatuses.includes(req.body.status)) {
-        return res.status(400).json({ message: "변경할 수 없는 주문 상태입니다." });
-      }
-
-      if (order.status !== req.body.status) {
-        order.status = req.body.status;
-        order.statusHistory = [...(order.statusHistory || []), { status: req.body.status, changedAt: new Date() }];
-      }
-    } else {
-      if (order.status !== "PAYMENT_PENDING") {
-        return res.status(400).json({ message: "결제 완료된 주문은 배송 정보를 수정할 수 없습니다." });
-      }
-
-      order.delivery = validateDelivery({ ...order.delivery.toObject(), ...req.body.delivery });
+    if (order.status !== "PAYMENT_PENDING") {
+      return res.status(400).json({ message: "결제 완료된 주문은 배송 정보를 수정할 수 없습니다." });
     }
+
+    order.delivery = validateDelivery({ ...order.delivery.toObject(), ...req.body.delivery });
 
     await order.save();
     await order.populate("items.product");
