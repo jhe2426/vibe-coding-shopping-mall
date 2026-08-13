@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Heart, Search, ShoppingBag, UserRound } from "lucide-react";
 
 import { WISHLIST_CHANGE_EVENT, fetchProductLikes } from "../api/product-likes.js";
@@ -7,11 +7,16 @@ import { fetchMyProfile } from "../api/auth.js";
 import { AUTH_SESSION_CHANGE_EVENT, buildAuthHeaders, clearAuthSession, getAuthToken } from "../utils/auth-storage.js";
 import { getGuestCartItemCount } from "../utils/guest-cart.js";
 
-const navItems = ["MEN", "WOMEN", "RUNNING", "COLLECTION"];
+const navItems = [
+  { label: "MEN", catalog: "men" },
+  { label: "WOMEN", catalog: "women" },
+  { label: "RUNNING", catalog: "running" },
+];
 const CART_CHANGE_EVENT = "stride-cart-change";
 
 function NavigationBar() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(getAuthToken()));
   const [currentUser, setCurrentUser] = useState(null);
   const [cartItemCount, setCartItemCount] = useState(0);
@@ -153,11 +158,11 @@ function NavigationBar() {
 
         <nav className="main-nav" aria-label="primary navigation">
           {navItems.map((item) => (
-            <Link to="/" key={item}>
-              {item}
+            <Link className={searchParams.get("catalog") === item.catalog ? "is-active" : ""} to={`/?catalog=${item.catalog}`} key={item.catalog}>
+              {item.label}
             </Link>
           ))}
-          <Link className="sale-link" to="/">
+          <Link className={`sale-link ${searchParams.get("catalog") === "sale" ? "is-active" : ""}`} to="/?catalog=sale">
             SALE
           </Link>
         </nav>

@@ -43,6 +43,11 @@ const statusFilterOptions = [
 ];
 
 const categoryFilterOptions = Object.entries(categoryLabels).map(([value, label]) => ({ value, label }));
+const genderLabels = {
+  MEN: "남성",
+  WOMEN: "여성",
+  UNISEX: "공용",
+};
 
 const formatPrice = (price) => `${Number(price || 0).toLocaleString("ko-KR")}원`;
 
@@ -66,6 +71,7 @@ function AdminProductsPage() {
   const [productLoadError, setProductLoadError] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [brandFilter, setBrandFilter] = useState("ALL");
+  const [genderFilter, setGenderFilter] = useState("ALL");
   const [categoryFilter, setCategoryFilter] = useState("ALL");
   const [productNameInput, setProductNameInput] = useState("");
   const [productNameQuery, setProductNameQuery] = useState("");
@@ -95,6 +101,7 @@ function AdminProductsPage() {
           searchParams.set("status", statusFilter);
         }
         if (brandFilter !== "ALL") searchParams.set("brand", brandFilter);
+        if (genderFilter !== "ALL") searchParams.set("targetGender", genderFilter);
         if (categoryFilter !== "ALL") searchParams.set("category", categoryFilter);
         if (productNameQuery) searchParams.set("name", productNameQuery);
         const queryString = searchParams.size > 0 ? `?${searchParams.toString()}` : "";
@@ -124,7 +131,7 @@ function AdminProductsPage() {
     return () => {
       isMounted = false;
     };
-  }, [brandFilter, categoryFilter, productNameQuery, productRefreshKey, statusFilter]);
+  }, [brandFilter, categoryFilter, genderFilter, productNameQuery, productRefreshKey, statusFilter]);
 
   useEffect(() => {
     let isMounted = true;
@@ -244,6 +251,12 @@ function AdminProductsPage() {
     setSelectedProductIds([]);
   };
 
+  const handleGenderFilterChange = (value) => {
+    setGenderFilter(value);
+    setCurrentPage(1);
+    setSelectedProductIds([]);
+  };
+
   const handleProductNameSearch = () => {
     setProductNameQuery(productNameInput.trim());
     setCurrentPage(1);
@@ -259,6 +272,7 @@ function AdminProductsPage() {
   const resetFilters = () => {
     setStatusFilter("ALL");
     setBrandFilter("ALL");
+    setGenderFilter("ALL");
     setCategoryFilter("ALL");
     setProductNameInput("");
     setProductNameQuery("");
@@ -460,6 +474,15 @@ function AdminProductsPage() {
               </label>
 
               <label className="admin-filter-field">
+                <span>성별</span>
+                <select value={genderFilter} onChange={(event) => handleGenderFilterChange(event.target.value)}>
+                  <option value="ALL">전체</option>
+                  {Object.entries(genderLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                </select>
+                <ChevronDown size={17} strokeWidth={2} />
+              </label>
+
+              <label className="admin-filter-field">
                 <span>카테고리</span>
                 <select value={categoryFilter} onChange={(event) => handleCategoryFilterChange(event.target.value)}>
                   <option value="ALL">전체</option>
@@ -517,6 +540,7 @@ function AdminProductsPage() {
                     </th>
                     <th>상품정보</th>
                     <th>카테고리</th>
+                    <th>성별</th>
                     <th>판매상태</th>
                     <th>재고수량</th>
                     <th>판매가</th>
@@ -528,13 +552,13 @@ function AdminProductsPage() {
                 </thead>
                 <tbody>
                   {isLoadingProducts && (
-                    <tr><td className="admin-products-empty" colSpan="10">상품 목록을 불러오는 중입니다.</td></tr>
+                    <tr><td className="admin-products-empty" colSpan="11">상품 목록을 불러오는 중입니다.</td></tr>
                   )}
                   {!isLoadingProducts && productLoadError && (
-                    <tr><td className="admin-products-empty is-error" colSpan="10">{productLoadError}</td></tr>
+                    <tr><td className="admin-products-empty is-error" colSpan="11">{productLoadError}</td></tr>
                   )}
                   {!isLoadingProducts && !productLoadError && products.length === 0 && (
-                    <tr><td className="admin-products-empty" colSpan="10">등록된 상품이 없습니다.</td></tr>
+                    <tr><td className="admin-products-empty" colSpan="11">등록된 상품이 없습니다.</td></tr>
                   )}
                   {!isLoadingProducts && !productLoadError && paginatedProducts.map((product) => {
                     const stockQuantity = product.totalStockQuantity ?? product.sizes.reduce((total, size) => total + size.stockQuantity, 0);
@@ -563,6 +587,7 @@ function AdminProductsPage() {
                           </div>
                         </td>
                         <td><span>{categoryLabels[product.category] || product.category}</span></td>
+                        <td><span>{genderLabels[product.targetGender] || product.targetGender}</span></td>
                         <td>
                           <span className={`admin-product-status ${currentStatus.className}`}>{currentStatus.label}</span>
                         </td>

@@ -22,6 +22,20 @@ const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "/api";
 
 const toNumber = (value) => Number(String(value).replace(/[^0-9.-]/g, ""));
 
+const calculateDiscountedSalePrice = (regularPrice, discountRate) => {
+  if (String(discountRate).trim() === "") return null;
+
+  const parsedRegularPrice = toNumber(regularPrice);
+  const parsedDiscountRate = Number(discountRate);
+
+  if (!Number.isFinite(parsedRegularPrice) || parsedRegularPrice < 0 || !Number.isFinite(parsedDiscountRate)) {
+    return null;
+  }
+
+  const normalizedRate = Math.min(100, Math.max(0, parsedDiscountRate));
+  return Math.round(parsedRegularPrice * (1 - (normalizedRate / 100)));
+};
+
 const saleStatusByLabel = {
   판매중: "SELLING",
   비공개: "HIDDEN",
@@ -75,6 +89,7 @@ function AdminProductCreatePage() {
   const [dragOverExtraImageIndex, setDragOverExtraImageIndex] = useState(null);
   const [sizes, setSizes] = useState(initialSizes);
   const [status, setStatus] = useState("판매중");
+  const [isRecommended, setIsRecommended] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingProduct, setIsLoadingProduct] = useState(isEditMode);
   const [productLoadError, setProductLoadError] = useState("");
@@ -86,6 +101,7 @@ function AdminProductCreatePage() {
   const [productName, setProductName] = useState("");
   const [salePrice, setSalePrice] = useState("");
   const [regularPrice, setRegularPrice] = useState("");
+  const [discountRate, setDiscountRate] = useState("");
   const [newBrand, setNewBrand] = useState("");
   const [isSavingBrand, setIsSavingBrand] = useState(false);
 
@@ -150,6 +166,12 @@ function AdminProductCreatePage() {
         setTargetGender(product.targetGender || "");
         setSalePrice(product.salePrice ?? "");
         setRegularPrice(product.regularPrice ?? "");
+        const currentDiscountRate = (1 - (Number(product.salePrice) / Number(product.regularPrice))) * 100;
+        setDiscountRate(
+          product.salePrice !== null && product.salePrice !== undefined && Number(product.regularPrice) > 0
+            ? String(Number(currentDiscountRate.toFixed(2)))
+            : "",
+        );
         setDefaultImage(product.cardImages?.defaultImage || "");
         setHoverImage(product.cardImages?.hoverImage || "");
         setExtraImages(
@@ -160,6 +182,7 @@ function AdminProductCreatePage() {
         setSizes(productSizes.length > 0 ? productSizes : initialSizes);
         nextSizeOptionId.current = productSizes.length;
         setStatus(saleStatusLabelByValue[product.status] || "판매중");
+        setIsRecommended(Boolean(product.isRecommended));
       } catch (error) {
         if (isMounted) {
           setProductLoadError(error.message || "상품 정보를 불러오지 못했습니다.");
@@ -182,6 +205,24 @@ function AdminProductCreatePage() {
     clearAuthSession();
     setIsProfileMenuOpen(false);
     navigate("/", { replace: true });
+  };
+
+  const handleDiscountRateChange = (nextDiscountRate) => {
+    setDiscountRate(nextDiscountRate);
+    const discountedPrice = calculateDiscountedSalePrice(regularPrice, nextDiscountRate);
+
+    if (discountedPrice !== null) {
+      setSalePrice(String(discountedPrice));
+    }
+  };
+
+  const handleRegularPriceChange = (nextRegularPrice) => {
+    setRegularPrice(nextRegularPrice);
+    const discountedPrice = calculateDiscountedSalePrice(nextRegularPrice, discountRate);
+
+    if (discountedPrice !== null) {
+      setSalePrice(String(discountedPrice));
+    }
   };
 
   const openCloudinaryWidget = (onUpload, maxFiles = 1) => {
@@ -320,9 +361,10 @@ function AdminProductCreatePage() {
       name: getValue("name"),
       brand: getValue("brand"),
       regularPrice: regularPriceValue,
-      salePrice: salePriceValue || null,
+      salePrice: getValue("salePrice") === "" ? null : salePriceValue,
       targetGender: getValue("targetGender"),
       category: getValue("category"),
+      isRecommended,
       cardImages: {
         defaultImage,
         hoverImage,
@@ -504,11 +546,11 @@ function AdminProductCreatePage() {
                   </label>
                   <label className="admin-create-field admin-unit-field">
                     <span>할인율</span>
-                    <div><input inputMode="numeric" placeholder="0" /><em>%</em></div>
+                    <div><input value={discountRate} type="number" min="0" max="100" step="0.01" inputMode="decimal" placeholder="0" onChange={(event) => handleDiscountRateChange(event.target.value)} /><em>%</em></div>
                   </label>
                   <label className="admin-create-field admin-unit-field">
                     <span>정상가</span>
-                    <div><input name="regularPrice" value={regularPrice} onChange={(event) => setRegularPrice(event.target.value)} inputMode="numeric" placeholder="0" required /><em>원</em></div>
+                    <div><input name="regularPrice" value={regularPrice} onChange={(event) => handleRegularPriceChange(event.target.value)} inputMode="numeric" placeholder="0" required /><em>원</em></div>
                   </label>
                   <div className="admin-create-field admin-create-span-full">
                     <span>성별 및 카테고리 <b>*</b></span>
@@ -676,6 +718,16 @@ function AdminProductCreatePage() {
                         <span><strong>{value}</strong><small>{description}</small></span>
                       </label>
                     ))}
+                  </div>
+                  <div className="admin-recommend-settings">
+                    <span>메인 추천 노출</span>
+                    <label>
+                      <input type="checkbox" checked={isRecommended} onChange={(event) => setIsRecommended(event.target.checked)} />
+                      <span>
+                        <strong>추천 상품으로 노출</strong>
+                        <small>체크한 판매 중 상품만 메인 페이지의 추천 상품에 표시됩니다.</small>
+                      </span>
+                    </label>
                   </div>
                 </div>
               </section>

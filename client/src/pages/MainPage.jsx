@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ArrowRight, ChevronLeft, ChevronRight, Heart } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { fetchProductLikes, getProductLikeKey, updateProductLikeStatus } from "../api/product-likes.js";
 import NavigationBar from "../components/NavigationBar.jsx";
 import SiteFooter from "../components/SiteFooter.jsx";
@@ -10,8 +10,27 @@ import strideCampaignBanner02 from "../assets/home/stride-campaign-banner-02.png
 import strideCampaignBanner03 from "../assets/home/stride-campaign-banner-03.png";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "/api";
+const PRODUCTS_PER_PAGE = 12;
+const RECOMMENDED_PRODUCT_LIMIT = 8;
 const formatPrice = (price) => `${Number(price || 0).toLocaleString("ko-KR")} 원`;
 const getProductPathId = (product) => product.productId || product.id;
+const getDiscountRate = (product) => {
+  const regularPrice = Number(product.regularPrice);
+  const salePrice = Number(product.salePrice);
+
+  if (!Number.isFinite(regularPrice) || regularPrice <= 0 || !Number.isFinite(salePrice) || salePrice >= regularPrice) {
+    return null;
+  }
+
+  return Math.round((1 - (salePrice / regularPrice)) * 100);
+};
+
+const catalogFilters = {
+  men: { title: "MEN", targetGender: "MEN" },
+  women: { title: "WOMEN", targetGender: "WOMEN" },
+  running: { title: "RUNNING", category: "SPORTS" },
+  sale: { title: "SALE", isSaleOnly: true },
+};
 
 const defaultHeroSlides = [
   {
@@ -39,9 +58,12 @@ const defaultHeroSlides = [
 
 function MainPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const activeCatalog = catalogFilters[searchParams.get("catalog")] || null;
   const [activeSlideIndex, setActiveSlideIndex] = useState(0);
   const [heroSlides, setHeroSlides] = useState(defaultHeroSlides);
   const [products, setProducts] = useState([]);
+  const [visibleProductCount, setVisibleProductCount] = useState(RECOMMENDED_PRODUCT_LIMIT);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [productLoadError, setProductLoadError] = useState("");
   const [likedProductIds, setLikedProductIds] = useState(() => new Set());
@@ -92,7 +114,13 @@ function MainPage() {
         setIsLoadingProducts(true);
         setProductLoadError("");
 
-        const response = await fetch(`${apiBaseUrl}/products?status=SELLING`);
+        const productSearchParams = new URLSearchParams({ status: "SELLING" });
+
+        if (!activeCatalog) productSearchParams.set("isRecommended", "true");
+        if (activeCatalog?.targetGender) productSearchParams.set("targetGender", activeCatalog.targetGender);
+        if (activeCatalog?.category) productSearchParams.set("category", activeCatalog.category);
+
+        const response = await fetch(`${apiBaseUrl}/products?${productSearchParams.toString()}`);
         const productList = await response.json().catch(() => ({}));
 
         if (!response.ok) {
@@ -101,11 +129,20 @@ function MainPage() {
 
         if (isMounted) {
           // 관리자 화면과 달리 메인에는 판매 중인 상품만 노출한다.
-          setProducts(
+          const sellingProducts =
             Array.isArray(productList)
               ? productList.filter((product) => product.status === "SELLING")
-              : [],
-          );
+              : [];
+          const filteredProducts = activeCatalog?.isSaleOnly
+            ? sellingProducts.filter(
+              (product) => product.salePrice !== null
+                && product.salePrice !== undefined
+                && Number(product.salePrice) < Number(product.regularPrice),
+            )
+            : sellingProducts;
+
+          setProducts(filteredProducts);
+          setVisibleProductCount(activeCatalog ? PRODUCTS_PER_PAGE : RECOMMENDED_PRODUCT_LIMIT);
         }
       } catch (error) {
         if (isMounted) {
@@ -123,7 +160,7 @@ function MainPage() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [activeCatalog]);
 
   useEffect(() => {
     let isMounted = true;
@@ -206,7 +243,7 @@ function MainPage() {
       <NavigationBar />
 
       <main className="home-main">
-        <section className="home-hero-banner" aria-label="STRIDE campaign banner">
+        {!activeCatalog && <section className="home-hero-banner" aria-label="STRIDE campaign banner">
           {heroSlides.map((slide, index) => (
             <div className={`hero-slide ${index === activeSlideIndex ? "is-active" : ""}`} key={slide.id}>
               <img src={slide.imageUrl || slide.image} alt={`${slide.title} 캠페인 배너`} />
@@ -243,11 +280,11 @@ function MainPage() {
           >
             <ChevronRight size={30} strokeWidth={1.8} />
           </button>
-        </section>
+        </section>}
 
         <section className="home-products" aria-labelledby="home-products-title">
           <div className="home-products-heading">
-            <h1 id="home-products-title">추천 상품</h1>
+            <h1 id="home-products-title">{activeCatalog ? `${activeCatalog.title} 상품` : "추천 상품"}</h1>
           </div>
 
           <div className="product-grid">
@@ -255,9 +292,10 @@ function MainPage() {
             {!isLoadingProducts && productLoadError && <p className="home-products-message is-error">{productLoadError}</p>}
             {!isLoadingProducts && !productLoadError && likeActionError && <p className="home-products-message is-error">{likeActionError}</p>}
             {!isLoadingProducts && !productLoadError && products.length === 0 && <p className="home-products-message">등록된 상품이 없습니다.</p>}
-            {!isLoadingProducts && !productLoadError && products.map((product) => {
+            {!isLoadingProducts && !productLoadError && products.slice(0, visibleProductCount).map((product) => {
               const productId = getProductLikeKey(product);
               const isLiked = likedProductIds.has(productId);
+              const discountRate = activeCatalog?.isSaleOnly ? getDiscountRate(product) : null;
 
               return (
                 <article className="product-card" key={product.id}>
@@ -274,7 +312,10 @@ function MainPage() {
                   </Link>
                   <div className="product-info">
                     <Link className="product-copy product-copy-link" to={`/products/${getProductPathId(product)}`}>
-                      <strong>{formatPrice(product.salePrice ?? product.regularPrice)}</strong>
+                      <strong className="product-price">
+                        {discountRate !== null && <em>{discountRate}%</em>}
+                        {formatPrice(product.salePrice ?? product.regularPrice)}
+                      </strong>
                       <h2>{product.name}</h2>
                     </Link>
                     <button
@@ -293,9 +334,15 @@ function MainPage() {
             })}
           </div>
 
-          <button className="more-products-button" type="button">
-            더보기
-          </button>
+          {activeCatalog && !isLoadingProducts && !productLoadError && products.length > visibleProductCount && (
+            <button
+              className="more-products-button"
+              type="button"
+              onClick={() => setVisibleProductCount((count) => count + PRODUCTS_PER_PAGE)}
+            >
+              더보기
+            </button>
+          )}
         </section>
       </main>
 

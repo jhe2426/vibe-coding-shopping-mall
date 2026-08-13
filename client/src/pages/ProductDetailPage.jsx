@@ -44,6 +44,16 @@ const sizeGuide = [240, 245, 250, 255, 260, 265, 270, 275, 280, 285, 290, 295, 3
 const getProductPathId = (product) => product?.productId || product?.id;
 const getProductImage = (product, type = "defaultImage") => product?.cardImages?.[type] || product?.cardImages?.defaultImage || "";
 const formatQuestionDate = (date) => new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(date));
+const getDiscountRate = (product) => {
+  const regularPrice = Number(product?.regularPrice);
+  const salePrice = Number(product?.salePrice);
+
+  if (!Number.isFinite(regularPrice) || regularPrice <= 0 || !Number.isFinite(salePrice) || salePrice >= regularPrice) {
+    return null;
+  }
+
+  return Math.round((1 - (salePrice / regularPrice)) * 100);
+};
 
 function ProductDetailPage() {
   const navigate = useNavigate();
@@ -198,6 +208,7 @@ function ProductDetailPage() {
   const selectedProduct = useMemo(() => (
     colorVariants.find((variant) => String(getProductPathId(variant)) === String(selectedVariantId)) || product
   ), [colorVariants, product, selectedVariantId]);
+  const selectedProductDiscountRate = getDiscountRate(selectedProduct);
 
   useEffect(() => {
     let isMounted = true;
@@ -647,7 +658,12 @@ function ProductDetailPage() {
                 <div className="product-title-block">
                   <h1>{selectedProduct.name}</h1>
                   <p>{targetGenderKoreanLabel} {categoryKoreanLabel}</p>
-                  <strong>{formatPrice(selectedProduct.salePrice ?? selectedProduct.regularPrice)}</strong>
+                  {selectedProductDiscountRate !== null ? (
+                    <div className="product-detail-price is-sale">
+                      <div><em>{selectedProductDiscountRate}%</em><del>{formatPrice(selectedProduct.regularPrice)}</del></div>
+                      <strong>{formatPrice(selectedProduct.salePrice)}</strong>
+                    </div>
+                  ) : <strong>{formatPrice(selectedProduct.regularPrice)}</strong>}
                 </div>
 
                 <div className="product-color-strip" aria-label="다른 컬러 상품">

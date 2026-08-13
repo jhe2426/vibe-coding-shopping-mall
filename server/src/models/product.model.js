@@ -151,6 +151,15 @@ const productSchema = new Schema(
     },
 
     /**
+     * 메인 추천 상품 노출 여부
+     */
+    isRecommended: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+    /**
      * 상품이 포함된 컬렉션
      */
     collections: {

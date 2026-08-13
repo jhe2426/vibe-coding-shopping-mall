@@ -62,6 +62,10 @@ const buildProductListFilter = (query) => {
     filter.collections = query.collection;
   }
 
+  if (query.isRecommended === "true" || query.isRecommended === "false") {
+    filter.isRecommended = query.isRecommended === "true";
+  }
+
   if (query.name) {
     filter.name = {
       $regex: escapeRegularExpression(query.name.trim()),
