@@ -6,6 +6,7 @@ import MyPage from "./pages/MyPage.jsx";
 import ProductDetailPage from "./pages/ProductDetailPage.jsx";
 import AdminPage from "./pages/admin/AdminPage.jsx";
 import AdminBrandManagementPage from "./pages/admin/AdminBrandManagementPage.jsx";
+import AdminBannerManagementPage from "./pages/admin/AdminBannerManagementPage.jsx";
 import AdminMemberManagementPage from "./pages/admin/AdminMemberManagementPage.jsx";
 import AdminOrderDetailPage from "./pages/admin/AdminOrderDetailPage.jsx";
 import AdminOrderManagementPage from "./pages/admin/AdminOrderManagementPage.jsx";
@@ -41,6 +42,7 @@ function App() {
         <Route path="/admin/products/new" element={<AdminProductCreatePage />} />
         <Route path="/admin/products/:id/edit" element={<AdminProductCreatePage />} />
         <Route path="/admin/brands" element={<AdminBrandManagementPage />} />
+        <Route path="/admin/banners" element={<AdminBannerManagementPage />} />
       </Route>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />

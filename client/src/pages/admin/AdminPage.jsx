@@ -7,6 +7,7 @@ import {
   ClipboardList,
   Home,
   Package,
+  PanelsTopLeft,
   ShoppingBag,
   Users,
   WalletCards,
@@ -54,6 +55,7 @@ function AdminPage() {
   const navigate = useNavigate();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isProductMenuOpen, setIsProductMenuOpen] = useState(false);
+  const [isContentMenuOpen, setIsContentMenuOpen] = useState(false);
   const [profile, setProfile] = useState(null);
   const [dashboard, setDashboard] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -243,6 +245,23 @@ function AdminPage() {
                 <Link to="/admin/products">상품 목록</Link>
                 <Link to="/admin/products/low-stock">재고 부족</Link>
                 <Link to="/admin/brands">브랜드 관리</Link>
+              </div>
+            )}
+          </div>
+          <div className="admin-nav-product-group">
+            <button
+              className="admin-nav-link"
+              type="button"
+              aria-expanded={isContentMenuOpen}
+              onClick={() => setIsContentMenuOpen((isOpen) => !isOpen)}
+            >
+              <PanelsTopLeft size={20} strokeWidth={1.9} />
+              <span>콘텐츠 관리</span>
+              <ChevronDown className="admin-nav-expand-icon" size={16} strokeWidth={2} />
+            </button>
+            {isContentMenuOpen && (
+              <div className="admin-nav-submenu">
+                <Link to="/admin/banners">메인 배너 관리</Link>
               </div>
             )}
           </div>

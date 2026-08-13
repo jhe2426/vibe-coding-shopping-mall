@@ -13,7 +13,7 @@ const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "/api";
 const formatPrice = (price) => `${Number(price || 0).toLocaleString("ko-KR")} 원`;
 const getProductPathId = (product) => product.productId || product.id;
 
-const heroSlides = [
+const defaultHeroSlides = [
   {
     id: 1,
     image: strideCampaignBanner,
@@ -40,12 +40,38 @@ const heroSlides = [
 function MainPage() {
   const navigate = useNavigate();
   const [activeSlideIndex, setActiveSlideIndex] = useState(0);
+  const [heroSlides, setHeroSlides] = useState(defaultHeroSlides);
   const [products, setProducts] = useState([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [productLoadError, setProductLoadError] = useState("");
   const [likedProductIds, setLikedProductIds] = useState(() => new Set());
   const [pendingLikeProductId, setPendingLikeProductId] = useState(null);
   const [likeActionError, setLikeActionError] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadBanners = async () => {
+      try {
+        const response = await fetch(`${apiBaseUrl}/banners`);
+        const bannerList = await response.json().catch(() => []);
+
+        // 아직 관리자로 등록한 배너가 없을 때에는 기존 캠페인 배너를 유지합니다.
+        if (response.ok && Array.isArray(bannerList) && bannerList.length > 0 && isMounted) {
+          setHeroSlides(bannerList);
+          setActiveSlideIndex(0);
+        }
+      } catch {
+        // 배너 API를 사용할 수 없는 동안에도 기존 홈 화면은 그대로 노출합니다.
+      }
+    };
+
+    loadBanners();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // 메인 배너는 버튼을 누르지 않아도 일정 시간마다 자동으로 다음 이미지로 이동합니다.
   useEffect(() => {
@@ -56,7 +82,7 @@ function MainPage() {
     return () => {
       window.clearInterval(slideTimer);
     };
-  }, []);
+  }, [heroSlides.length]);
 
   useEffect(() => {
     let isMounted = true;
@@ -183,13 +209,18 @@ function MainPage() {
         <section className="home-hero-banner" aria-label="STRIDE campaign banner">
           {heroSlides.map((slide, index) => (
             <div className={`hero-slide ${index === activeSlideIndex ? "is-active" : ""}`} key={slide.id}>
-              <img src={slide.image} alt={`${slide.title} 캠페인 배너`} />
+              <img src={slide.imageUrl || slide.image} alt={`${slide.title} 캠페인 배너`} />
               <div className="home-hero-copy">
                 <p>{slide.eyebrow}</p>
                 <h1>{slide.title}</h1>
                 <span>{slide.description}</span>
-                <button type="button">
-                  구매하기
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (slide.linkedProductId) navigate(`/products/${slide.linkedProductId}`);
+                  }}
+                >
+                  {slide.buttonLabel || "구매하기"}
                   <ArrowRight size={18} strokeWidth={2} />
                 </button>
               </div>
