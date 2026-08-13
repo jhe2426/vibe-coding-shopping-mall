@@ -85,6 +85,10 @@ function ProductDetailPage() {
   const [replyDrafts, setReplyDrafts] = useState({});
   const [replyErrors, setReplyErrors] = useState({});
   const [submittingReplyId, setSubmittingReplyId] = useState(null);
+  const [editingReplyId, setEditingReplyId] = useState(null);
+  const [replyEditDrafts, setReplyEditDrafts] = useState({});
+  const [replyActionId, setReplyActionId] = useState(null);
+  const [deletingQuestionId, setDeletingQuestionId] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -227,7 +231,9 @@ function ProductDetailPage() {
         setReplyDrafts({});
         setReplyErrors({});
 
-        const response = await fetch(`${apiBaseUrl}/products/${productId}/questions`);
+        const response = await fetch(`${apiBaseUrl}/products/${productId}/questions`, {
+          headers: { ...buildAuthHeaders() },
+        });
         const data = await response.json().catch(() => []);
 
         if (!response.ok) {
@@ -408,7 +414,7 @@ function ProductDetailPage() {
       return;
     }
 
-    if (!isAdmin) return;
+    if (!isAdmin && !question.isAuthor) return;
 
     try {
       if (!questionDetails[question.id]) {
@@ -430,6 +436,36 @@ function ProductDetailPage() {
       setExpandedQuestionId(question.id);
     } catch (error) {
       setQnaLoadError(error.message || "비공개 문의를 불러오지 못했습니다.");
+    }
+  };
+
+  const deleteQuestion = async (question) => {
+    if (!window.confirm("작성한 상품 문의를 삭제할까요? 답글도 함께 삭제됩니다.")) return;
+
+    try {
+      setDeletingQuestionId(question.id);
+      const productId = getProductPathId(selectedProduct);
+      const response = await fetch(`${apiBaseUrl}/products/${productId}/questions/${question.id}`, {
+        method: "DELETE",
+        headers: { ...buildAuthHeaders() },
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || "상품 문의를 삭제하지 못했습니다.");
+      }
+
+      setQnaQuestions((questions) => questions.filter((item) => item.id !== question.id));
+      setQuestionDetails((details) => {
+        const nextDetails = { ...details };
+        delete nextDetails[question.id];
+        return nextDetails;
+      });
+      if (expandedQuestionId === question.id) setExpandedQuestionId(null);
+    } catch (error) {
+      setQnaLoadError(error.message || "상품 문의를 삭제하지 못했습니다.");
+    } finally {
+      setDeletingQuestionId(null);
     }
   };
 
@@ -478,6 +514,87 @@ function ProductDetailPage() {
       setReplyErrors((errors) => ({ ...errors, [question.id]: error.message || "답글 등록에 실패했습니다." }));
     } finally {
       setSubmittingReplyId(null);
+    }
+  };
+
+  const replaceReply = (question, savedReply) => {
+    const updateReplies = (replies) => replies.map((reply) => (reply.id === savedReply.id ? savedReply : reply));
+
+    setQuestionDetails((details) => ({
+      ...details,
+      [question.id]: details[question.id]
+        ? { ...details[question.id], replies: updateReplies(details[question.id].replies || []) }
+        : details[question.id],
+    }));
+    if (!question.isSecret) {
+      setQnaQuestions((questions) => questions.map((item) => (
+        item.id === question.id ? { ...item, replies: updateReplies(item.replies || []) } : item
+      )));
+    }
+  };
+
+  const saveReplyEdit = async (question, reply) => {
+    const content = String(replyEditDrafts[reply.id] ?? reply.content).trim();
+    if (!content) return;
+
+    try {
+      setReplyActionId(reply.id);
+      const productId = getProductPathId(selectedProduct);
+      const response = await fetch(`${apiBaseUrl}/products/${productId}/questions/${question.id}/replies/${reply.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...buildAuthHeaders() },
+        body: JSON.stringify({ content }),
+      });
+      const savedReply = await response.json().catch(() => ({}));
+
+      if (!response.ok) throw new Error(savedReply.message || "답글을 수정하지 못했습니다.");
+
+      replaceReply(question, savedReply);
+      setEditingReplyId(null);
+      setReplyEditDrafts((drafts) => {
+        const nextDrafts = { ...drafts };
+        delete nextDrafts[reply.id];
+        return nextDrafts;
+      });
+    } catch (error) {
+      setReplyErrors((errors) => ({ ...errors, [reply.id]: error.message || "답글을 수정하지 못했습니다." }));
+    } finally {
+      setReplyActionId(null);
+    }
+  };
+
+  const deleteReply = async (question, reply) => {
+    if (!window.confirm("관리자 답글을 삭제할까요?")) return;
+
+    try {
+      setReplyActionId(reply.id);
+      const productId = getProductPathId(selectedProduct);
+      const response = await fetch(`${apiBaseUrl}/products/${productId}/questions/${question.id}/replies/${reply.id}`, {
+        method: "DELETE",
+        headers: { ...buildAuthHeaders() },
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || "답글을 삭제하지 못했습니다.");
+      }
+
+      const removeReply = (replies) => replies.filter((item) => item.id !== reply.id);
+      setQuestionDetails((details) => ({
+        ...details,
+        [question.id]: details[question.id]
+          ? { ...details[question.id], replies: removeReply(details[question.id].replies || []) }
+          : details[question.id],
+      }));
+      if (!question.isSecret) {
+        setQnaQuestions((questions) => questions.map((item) => (
+          item.id === question.id ? { ...item, replies: removeReply(item.replies || []) } : item
+        )));
+      }
+    } catch (error) {
+      setReplyErrors((errors) => ({ ...errors, [reply.id]: error.message || "답글을 삭제하지 못했습니다." }));
+    } finally {
+      setReplyActionId(null);
     }
   };
 
@@ -819,6 +936,7 @@ function ProductDetailPage() {
                       return (
                         <li className={question.isSecret ? "is-secret" : ""} key={question.id}>
                           <button
+                            className="product-qna-item-toggle"
                             type="button"
                             aria-expanded={isExpanded}
                             aria-disabled={question.isSecret && !isAdmin}
@@ -831,16 +949,32 @@ function ProductDetailPage() {
                             <span className="product-qna-item-meta">{question.authorName} · {formatQuestionDate(question.createdAt)}</span>
                             <ChevronDown className={isExpanded ? "is-open" : ""} size={19} strokeWidth={1.8} />
                           </button>
+                          {question.isAuthor && (
+                            <button
+                              className="product-qna-delete-button"
+                              type="button"
+                              disabled={deletingQuestionId === question.id}
+                              onClick={() => deleteQuestion(question)}
+                            >
+                              {deletingQuestionId === question.id ? "삭제 중" : "삭제"}
+                            </button>
+                          )}
                           {isExpanded && content && (
                             <div className="product-qna-item-detail">
                               <p className="product-qna-item-content">{content}</p>
-                              {replies.map((reply) => (
+                              {replies.map((reply) => {
+                                const isEditingReply = editingReplyId === reply.id;
+
+                                return (
                                 <div className="product-qna-reply" key={reply.id}>
                                   <strong>관리자 답글</strong>
-                                  <span>{formatQuestionDate(reply.createdAt)}</span>
-                                  <p>{reply.content}</p>
+                                  <div className="product-qna-reply-meta"><span>{formatQuestionDate(reply.createdAt)}</span>{isAdmin && !isEditingReply && <div><button type="button" onClick={() => { setEditingReplyId(reply.id); setReplyEditDrafts((drafts) => ({ ...drafts, [reply.id]: reply.content })); }}>수정</button><button type="button" disabled={replyActionId === reply.id} onClick={() => deleteReply(question, reply)}>{replyActionId === reply.id ? "삭제 중" : "삭제"}</button></div>}</div>
+                                  {isEditingReply ? (
+                                    <div className="product-qna-reply-edit"><textarea value={replyEditDrafts[reply.id] ?? reply.content} maxLength={1000} onChange={(event) => setReplyEditDrafts((drafts) => ({ ...drafts, [reply.id]: event.target.value }))} /><div><button type="button" onClick={() => { setEditingReplyId(null); setReplyEditDrafts((drafts) => ({ ...drafts, [reply.id]: reply.content })); }}>취소</button><button type="button" disabled={replyActionId === reply.id || !String(replyEditDrafts[reply.id] ?? reply.content).trim()} onClick={() => saveReplyEdit(question, reply)}>{replyActionId === reply.id ? "저장 중" : "저장"}</button></div>{replyErrors[reply.id] && <p role="alert">{replyErrors[reply.id]}</p>}</div>
+                                  ) : <p>{reply.content}</p>}
                                 </div>
-                              ))}
+                                );
+                              })}
                               {isAdmin && (
                                 <form className="product-qna-reply-form" onSubmit={(event) => submitReply(event, question)}>
                                   <textarea

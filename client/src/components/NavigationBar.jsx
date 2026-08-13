@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { Heart, Search, ShoppingBag, UserRound } from "lucide-react";
+import { Heart, ShoppingBag, UserRound } from "lucide-react";
 
 import { WISHLIST_CHANGE_EVENT, fetchProductLikes } from "../api/product-likes.js";
 import { fetchMyProfile } from "../api/auth.js";
@@ -168,12 +168,6 @@ function NavigationBar() {
         </nav>
 
         <div className="header-actions" aria-label="shop actions">
-          {isLoggedIn && (
-            <button type="button" aria-label="검색">
-              <Search size={25} strokeWidth={1.8} />
-            </button>
-          )}
-
           {isLoggedIn && (
             <button className="wishlist-nav-button" type="button" aria-label="찜한 상품" onClick={() => navigate("/wishlist")}>
               <Heart size={25} strokeWidth={1.8} />

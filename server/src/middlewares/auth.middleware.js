@@ -27,6 +27,24 @@ export const authenticateToken = (req, res, next) => {
   }
 };
 
+// 공개 API에서도 로그인 사용자를 식별해야 할 때 사용합니다.
+export const authenticateOptionalToken = (req, _res, next) => {
+  const authorizationHeader = req.headers.authorization || "";
+  const [tokenType, token] = authorizationHeader.split(" ");
+
+  if (tokenType !== "Bearer" || !token || !process.env.JWT_SECRET) {
+    return next();
+  }
+
+  try {
+    req.authUser = jwt.verify(token, process.env.JWT_SECRET);
+  } catch {
+    // 공개 조회는 만료된 토큰이 있어도 익명 사용자로 처리합니다.
+  }
+
+  return next();
+};
+
 // 관리자 전용 조회/관리 API에서 일반 사용자의 접근을 막습니다.
 export const requireAdmin = (req, res, next) => {
   if (req.authUser?.userType !== "admin") {

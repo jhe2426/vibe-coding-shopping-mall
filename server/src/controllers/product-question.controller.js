@@ -24,7 +24,7 @@ const serializeReply = (reply) => ({
   createdAt: reply.createdAt,
 });
 
-const serializeQuestionListItem = (question, replies = []) => ({
+const serializeQuestionListItem = (question, replies = [], authUserId = null) => ({
   id: question._id.toString(),
   title: question.title,
   isSecret: question.isSecret,
@@ -32,6 +32,7 @@ const serializeQuestionListItem = (question, replies = []) => ({
   content: question.isSecret ? null : question.content,
   replies: question.isSecret ? [] : replies.map(serializeReply),
   createdAt: question.createdAt,
+  isAuthor: Boolean(authUserId && String(question.author) === String(authUserId)),
 });
 
 const findProduct = (id) => Product.findOne(buildProductFilter(id));
@@ -60,7 +61,11 @@ export const getProductQuestions = async (req, res, next) => {
     });
 
     return res.json(questions.map((question) => (
-      serializeQuestionListItem(question, repliesByQuestionId.get(question._id.toString()) || [])
+      serializeQuestionListItem(
+        question,
+        repliesByQuestionId.get(question._id.toString()) || [],
+        req.authUser?.id,
+      )
     )));
   } catch (error) {
     return next(error);
@@ -91,7 +96,7 @@ export const createProductQuestion = async (req, res, next) => {
       isSecret: req.body.isSecret === true || req.body.isSecret === "true",
     });
 
-    return res.status(201).json(serializeQuestionListItem(question));
+    return res.status(201).json(serializeQuestionListItem(question, [], req.authUser.id));
   } catch (error) {
     return next(error);
   }
@@ -100,10 +105,6 @@ export const createProductQuestion = async (req, res, next) => {
 // 비공개 문의 본문은 관리자만 선택해서 확인할 수 있습니다.
 export const getProductQuestionDetail = async (req, res, next) => {
   try {
-    if (req.authUser.userType !== "admin") {
-      return res.status(403).json({ message: "비공개 문의는 관리자만 확인할 수 있습니다." });
-    }
-
     const product = await findProduct(req.params.productId);
 
     if (!product) {
@@ -119,6 +120,13 @@ export const getProductQuestionDetail = async (req, res, next) => {
       return res.status(404).json({ message: "문의글을 찾을 수 없습니다." });
     }
 
+    const isAuthor = String(question.author) === String(req.authUser.id);
+    const isAdmin = req.authUser.userType === "admin";
+
+    if (!isAdmin && !isAuthor) {
+      return res.status(403).json({ message: "비공개 문의는 작성자 또는 관리자만 확인할 수 있습니다." });
+    }
+
     const replies = await ProductQuestionReply.find({ question: question._id }).sort({ createdAt: 1 });
 
     return res.json({
@@ -129,7 +137,41 @@ export const getProductQuestionDetail = async (req, res, next) => {
       authorName: maskAuthorName(question.authorName),
       replies: replies.map(serializeReply),
       createdAt: question.createdAt,
+      isAuthor,
     });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// 작성자 본인(또는 관리자)만 문의와 연결된 답글을 함께 삭제할 수 있습니다.
+export const deleteProductQuestion = async (req, res, next) => {
+  try {
+    const product = await findProduct(req.params.productId);
+
+    if (!product) {
+      return res.status(404).json({ message: "상품을 찾을 수 없습니다." });
+    }
+
+    const question = await ProductQuestion.findOne({
+      _id: req.params.questionId,
+      productId: product.productId,
+    });
+
+    if (!question) {
+      return res.status(404).json({ message: "문의글을 찾을 수 없습니다." });
+    }
+
+    const isAuthor = String(question.author) === String(req.authUser.id);
+
+    if (!isAuthor && req.authUser.userType !== "admin") {
+      return res.status(403).json({ message: "본인이 작성한 문의만 삭제할 수 있습니다." });
+    }
+
+    await ProductQuestionReply.deleteMany({ question: question._id });
+    await question.deleteOne();
+
+    return res.status(204).send();
   } catch (error) {
     return next(error);
   }
@@ -172,6 +214,62 @@ export const createProductQuestionReply = async (req, res, next) => {
     });
 
     return res.status(201).json(serializeReply(reply));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// 관리자만 등록한 답글을 수정할 수 있습니다.
+export const updateProductQuestionReply = async (req, res, next) => {
+  try {
+    const product = await findProduct(req.params.productId);
+
+    if (!product) {
+      return res.status(404).json({ message: "상품을 찾을 수 없습니다." });
+    }
+
+    const question = await ProductQuestion.findOne({ _id: req.params.questionId, productId: product.productId });
+
+    if (!question) {
+      return res.status(404).json({ message: "문의글을 찾을 수 없습니다." });
+    }
+
+    const reply = await ProductQuestionReply.findOne({ _id: req.params.replyId, question: question._id });
+
+    if (!reply) {
+      return res.status(404).json({ message: "답글을 찾을 수 없습니다." });
+    }
+
+    reply.content = req.body.content;
+    await reply.save();
+    return res.json(serializeReply(reply));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// 관리자만 등록한 답글을 삭제할 수 있습니다.
+export const deleteProductQuestionReply = async (req, res, next) => {
+  try {
+    const product = await findProduct(req.params.productId);
+
+    if (!product) {
+      return res.status(404).json({ message: "상품을 찾을 수 없습니다." });
+    }
+
+    const question = await ProductQuestion.findOne({ _id: req.params.questionId, productId: product.productId });
+
+    if (!question) {
+      return res.status(404).json({ message: "문의글을 찾을 수 없습니다." });
+    }
+
+    const reply = await ProductQuestionReply.findOneAndDelete({ _id: req.params.replyId, question: question._id });
+
+    if (!reply) {
+      return res.status(404).json({ message: "답글을 찾을 수 없습니다." });
+    }
+
+    return res.status(204).send();
   } catch (error) {
     return next(error);
   }
