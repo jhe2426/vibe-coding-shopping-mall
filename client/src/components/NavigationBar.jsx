@@ -14,6 +14,7 @@ const navItems = [
   { label: "RUNNING", catalog: "running" },
 ];
 const CART_CHANGE_EVENT = "stride-cart-change";
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "/api";
 
 function NavigationBar() {
   const navigate = useNavigate();
@@ -35,7 +36,7 @@ function NavigationBar() {
       }
 
       try {
-        const response = await fetch("/api/cart", {
+        const response = await fetch(`${apiBaseUrl}/cart`, {
           headers: {
             ...buildAuthHeaders(),
           },
@@ -57,7 +58,7 @@ function NavigationBar() {
       }
 
       try {
-        const likes = await fetchProductLikes("/api");
+        const likes = await fetchProductLikes(apiBaseUrl);
 
         if (isMounted) {
           setWishlistItemCount(likes.length);

@@ -10,8 +10,7 @@ import strideCampaignBanner02 from "../assets/home/stride-campaign-banner-02.png
 import strideCampaignBanner03 from "../assets/home/stride-campaign-banner-03.png";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "/api";
-const PRODUCTS_PER_PAGE = 12;
-const RECOMMENDED_PRODUCT_LIMIT = 8;
+const PRODUCTS_PER_PAGE = 8;
 const formatPrice = (price) => `${Number(price || 0).toLocaleString("ko-KR")} 원`;
 const getProductPathId = (product) => product.productId || product.id;
 const getDiscountRate = (product) => {
@@ -64,7 +63,7 @@ function MainPage() {
   const [activeSlideIndex, setActiveSlideIndex] = useState(0);
   const [heroSlides, setHeroSlides] = useState(defaultHeroSlides);
   const [products, setProducts] = useState([]);
-  const [visibleProductCount, setVisibleProductCount] = useState(RECOMMENDED_PRODUCT_LIMIT);
+  const [visibleProductCount, setVisibleProductCount] = useState(PRODUCTS_PER_PAGE);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [productLoadError, setProductLoadError] = useState("");
   const [likedProductIds, setLikedProductIds] = useState(() => new Set());
@@ -143,7 +142,7 @@ function MainPage() {
             : sellingProducts;
 
           setProducts(filteredProducts);
-          setVisibleProductCount(activeCatalog ? PRODUCTS_PER_PAGE : RECOMMENDED_PRODUCT_LIMIT);
+          setVisibleProductCount(PRODUCTS_PER_PAGE);
         }
       } catch (error) {
         if (isMounted) {
@@ -335,7 +334,7 @@ function MainPage() {
             })}
           </div>
 
-          {activeCatalog && !isLoadingProducts && !productLoadError && products.length > visibleProductCount && (
+          {!isLoadingProducts && !productLoadError && products.length > visibleProductCount && (
             <button
               className="more-products-button"
               type="button"
