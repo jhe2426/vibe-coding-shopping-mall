@@ -10,6 +10,7 @@ import { getGuestCartItemCount } from "../utils/guest-cart.js";
 const navItems = [
   { label: "MEN", catalog: "men" },
   { label: "WOMEN", catalog: "women" },
+  { label: "UNISEX", catalog: "unisex" },
   { label: "RUNNING", catalog: "running" },
 ];
 const CART_CHANGE_EVENT = "stride-cart-change";

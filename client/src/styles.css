@@ -8106,6 +8106,11 @@ button.admin-nav-link {
   padding: 12px 13px;
 }
 
+.admin-recommend-settings label.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
 .admin-recommend-settings input {
   width: 14px;
   height: 14px;

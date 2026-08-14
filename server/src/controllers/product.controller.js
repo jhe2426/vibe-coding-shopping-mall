@@ -78,11 +78,31 @@ const buildProductListFilter = (query) => {
 
 const bulkChangeableStatuses = new Set(["SELLING", "STOPPED"]);
 const LOW_STOCK_THRESHOLD = 10;
+const MAX_RECOMMENDED_PRODUCTS = 8;
+
+const validateRecommendedProductLimit = async (isRecommended, excludedProductId) => {
+  if (!isRecommended) return;
+
+  const filter = { isRecommended: true };
+
+  if (excludedProductId) {
+    filter._id = { $ne: excludedProductId };
+  }
+
+  const recommendedProductCount = await Product.countDocuments(filter);
+
+  if (recommendedProductCount >= MAX_RECOMMENDED_PRODUCTS) {
+    const error = new Error(`추천 상품은 최대 ${MAX_RECOMMENDED_PRODUCTS}개까지만 등록할 수 있습니다.`);
+    error.status = 400;
+    throw error;
+  }
+};
 
 // 새 상품을 생성합니다.
 export const createProduct = async (req, res, next) => {
   try {
     await validateBrandCategory(req.body.brand, req.body.category);
+    await validateRecommendedProductLimit(req.body.isRecommended);
     const product = await Product.create(req.body);
 
     return res.status(201).json(serializeProductWithInventory(product));
@@ -142,6 +162,7 @@ export const updateProduct = async (req, res, next) => {
 
     product.set(req.body);
     await validateBrandCategory(product.brand, product.category);
+    await validateRecommendedProductLimit(product.isRecommended, product._id);
     await product.save();
 
     return res.json(serializeProductWithInventory(product));

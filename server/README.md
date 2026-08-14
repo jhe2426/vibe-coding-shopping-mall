@@ -24,7 +24,7 @@ node index.js
 
 - `PORT`: 서버 포트
 - `HOST`: 서버 호스트
-- `MONGODB_URI`: MongoDB 연결 문자열
+- `MONGODB_ATLAS_URL`: Atlas MongoDB 연결 문자열. 설정되지 않으면 `mongodb://127.0.0.1:27017/shopping-mall`을 사용합니다.
 - `CLIENT_ORIGIN`: CORS 허용 프론트엔드 주소
 - `SOLAPI_API_KEY`: Solapi API Key
 - `SOLAPI_API_SECRET`: Solapi API Secret

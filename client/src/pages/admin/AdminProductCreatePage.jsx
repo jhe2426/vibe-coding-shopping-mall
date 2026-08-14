@@ -19,6 +19,7 @@ const initialSizes = [{ id: "size-option-0", size: "", quantity: "" }];
 const cloudinaryCloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
 const cloudinaryUploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "/api";
+const MAX_RECOMMENDED_PRODUCTS = 8;
 
 const toNumber = (value) => Number(String(value).replace(/[^0-9.-]/g, ""));
 
@@ -90,6 +91,9 @@ function AdminProductCreatePage() {
   const [sizes, setSizes] = useState(initialSizes);
   const [status, setStatus] = useState("판매중");
   const [isRecommended, setIsRecommended] = useState(false);
+  const [recommendedProductCount, setRecommendedProductCount] = useState(0);
+  const [isLoadingRecommendedProducts, setIsLoadingRecommendedProducts] = useState(true);
+  const [hasRecommendedProductCountError, setHasRecommendedProductCountError] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingProduct, setIsLoadingProduct] = useState(isEditMode);
   const [productLoadError, setProductLoadError] = useState("");
@@ -129,6 +133,35 @@ function AdminProductCreatePage() {
     };
 
     loadBrands();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadRecommendedProductCount = async () => {
+      try {
+        setIsLoadingRecommendedProducts(true);
+        setHasRecommendedProductCountError(false);
+        const response = await fetch(`${apiBaseUrl}/products?isRecommended=true`);
+        const products = await response.json().catch(() => []);
+
+        if (!response.ok || !Array.isArray(products)) {
+          throw new Error("추천 상품 수를 불러오지 못했습니다.");
+        }
+
+        if (isMounted) setRecommendedProductCount(products.length);
+      } catch {
+        if (isMounted) setHasRecommendedProductCountError(true);
+      } finally {
+        if (isMounted) setIsLoadingRecommendedProducts(false);
+      }
+    };
+
+    loadRecommendedProductCount();
 
     return () => {
       isMounted = false;
@@ -320,6 +353,24 @@ function AdminProductCreatePage() {
   };
 
   const selectedBrandCategories = brands.find((brand) => brand.name === selectedBrand)?.categories || [];
+  const isRecommendationSelectionDisabled = !isRecommended && (
+    isLoadingRecommendedProducts
+    || hasRecommendedProductCountError
+    || recommendedProductCount >= MAX_RECOMMENDED_PRODUCTS
+  );
+  const recommendationGuide = hasRecommendedProductCountError
+    ? "추천 상품 현황을 확인하지 못해 선택할 수 없습니다. 잠시 후 다시 시도해주세요."
+    : isLoadingRecommendedProducts
+      ? "추천 상품 현황을 확인하고 있습니다."
+      : recommendedProductCount >= MAX_RECOMMENDED_PRODUCTS && !isRecommended
+        ? `추천 상품은 최대 ${MAX_RECOMMENDED_PRODUCTS}개까지 등록할 수 있습니다.`
+        : `현재 추천 상품 ${recommendedProductCount}개 / 최대 ${MAX_RECOMMENDED_PRODUCTS}개`;
+
+  const handleRecommendationChange = (event) => {
+    if (event.target.checked && isRecommendationSelectionDisabled) return;
+
+    setIsRecommended(event.target.checked);
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -721,11 +772,16 @@ function AdminProductCreatePage() {
                   </div>
                   <div className="admin-recommend-settings">
                     <span>메인 추천 노출</span>
-                    <label>
-                      <input type="checkbox" checked={isRecommended} onChange={(event) => setIsRecommended(event.target.checked)} />
+                    <label className={isRecommendationSelectionDisabled ? "is-disabled" : ""}>
+                      <input
+                        type="checkbox"
+                        checked={isRecommended}
+                        disabled={isRecommendationSelectionDisabled}
+                        onChange={handleRecommendationChange}
+                      />
                       <span>
                         <strong>추천 상품으로 노출</strong>
-                        <small>체크한 판매 중 상품만 메인 페이지의 추천 상품에 표시됩니다.</small>
+                        <small>{recommendationGuide}</small>
                       </span>
                     </label>
                   </div>

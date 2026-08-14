@@ -1,11 +1,8 @@
 import mongoose from "mongoose";
 
 export const connectDB = async () => {
-  const mongoUri = process.env.MONGODB_URI;
-
-  if (!mongoUri) {
-    throw new Error("MONGODB_URI is not defined");
-  }
+  const mongoUri =
+    process.env.MONGODB_ATLAS_URL || "mongodb://127.0.0.1:27017/shopping-mall";
 
   mongoose.connection.on("connected", () => {
     console.log("MongoDB connected");

@@ -28,6 +28,7 @@ const getDiscountRate = (product) => {
 const catalogFilters = {
   men: { title: "MEN", targetGender: "MEN" },
   women: { title: "WOMEN", targetGender: "WOMEN" },
+  unisex: { title: "UNISEX", targetGender: "UNISEX" },
   running: { title: "RUNNING", category: "SPORTS" },
   sale: { title: "SALE", isSaleOnly: true },
 };
