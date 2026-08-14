@@ -1214,6 +1214,9 @@ button {
   display: grid;
   align-content: start;
   gap: 8px;
+  max-height: clamp(460px, 40vw, 680px);
+  overflow-y: auto;
+  padding-right: 2px;
 }
 
 .product-gallery-thumbnails button {
@@ -2279,6 +2282,8 @@ button {
     display: flex;
     order: 2;
     overflow-x: auto;
+    overflow-y: hidden;
+    max-height: none;
     padding-bottom: 4px;
   }
 

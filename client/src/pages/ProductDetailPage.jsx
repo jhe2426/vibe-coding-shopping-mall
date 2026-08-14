@@ -294,7 +294,21 @@ function ProductDetailPage() {
   const galleryImages = useMemo(() => {
     if (!selectedProduct) return [];
 
-    const cardImages = [
+    const detailImages = [...(selectedProduct.detailImages || [])]
+      .sort((first, second) => first.displayOrder - second.displayOrder)
+      .map((image, index) => ({
+        imageUrl: image.imageUrl,
+        altText: image.altText || `${selectedProduct.name} 상세 이미지 ${index + 1}`,
+      }))
+      .filter((image, index, images) => (
+        image.imageUrl && images.findIndex((item) => item.imageUrl === image.imageUrl) === index
+      ));
+
+    // 상세 영역과 좌측 갤러리는 같은 이미지 목록을 사용한다.
+    // 과거 상품처럼 상세 이미지가 없는 경우에만 카드 이미지를 대신 보여준다.
+    if (detailImages.length > 0) return detailImages;
+
+    return [
       {
         imageUrl: getProductImage(selectedProduct),
         altText: `${selectedProduct.name} 대표 이미지`,
@@ -303,16 +317,7 @@ function ProductDetailPage() {
         imageUrl: getProductImage(selectedProduct, "hoverImage"),
         altText: `${selectedProduct.name} 추가 이미지`,
       },
-    ];
-
-    const detailImages = [...(selectedProduct.detailImages || [])]
-      .sort((first, second) => first.displayOrder - second.displayOrder)
-      .map((image, index) => ({
-        imageUrl: image.imageUrl,
-        altText: image.altText || `${selectedProduct.name} 상세 이미지 ${index + 1}`,
-      }));
-
-    return [...cardImages, ...detailImages].filter((image, index, images) => (
+    ].filter((image, index, images) => (
       image.imageUrl && images.findIndex((item) => item.imageUrl === image.imageUrl) === index
     ));
   }, [selectedProduct]);
@@ -743,7 +748,7 @@ function ProductDetailPage() {
             <section className="product-purchase-section">
               <div className="product-gallery">
                 <div className="product-gallery-thumbnails" aria-label="상품 이미지 목록">
-                  {galleryImages.slice(0, 5).map((image, index) => (
+                  {galleryImages.map((image, index) => (
                     <button
                       className={index === activeImageIndex ? "is-active" : ""}
                       type="button"
@@ -888,9 +893,7 @@ function ProductDetailPage() {
 
             {activeDetailTab === "info" && (
               <section className="product-detail-images" aria-label="상품 상세 이미지">
-                {galleryImages.slice(2).length > 0
-                  ? galleryImages.slice(2).map((image) => <img src={image.imageUrl} alt={image.altText} key={image.imageUrl} />)
-                  : galleryImages.map((image) => <img src={image.imageUrl} alt={image.altText} key={image.imageUrl} />)}
+                {galleryImages.map((image) => <img src={image.imageUrl} alt={image.altText} key={image.imageUrl} />)}
               </section>
             )}
 
