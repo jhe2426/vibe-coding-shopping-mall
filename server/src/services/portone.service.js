@@ -54,7 +54,9 @@ export const verifyPortOnePayment = async ({ impUid, merchantUid, totalAmount })
   }
 
   if (payment.status !== "paid") {
-    throw createPortOneError("결제가 완료된 상태가 아닙니다.", 400);
+    const error = createPortOneError("결제가 완료된 상태가 아닙니다.", 400);
+    error.code = "PAYMENT_NOT_PAID";
+    throw error;
   }
 
   if (Number(payment.amount) !== totalAmount) {

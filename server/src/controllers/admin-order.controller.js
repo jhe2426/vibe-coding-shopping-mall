@@ -8,7 +8,7 @@ const KOREA_TIME_ZONE = "Asia/Seoul";
 const DAY_IN_MILLISECONDS = 24 * 60 * 60 * 1000;
 const DEFAULT_PAGE_SIZE = 10;
 const MAX_PAGE_SIZE = 50;
-const orderStatuses = ["PAYMENT_PENDING", "PAID", "PREPARING", "SHIPPED", "DELIVERED", "CANCELED"];
+const orderStatuses = ["PAID", "PREPARING", "SHIPPED", "DELIVERED", "CANCELED"];
 const adminEditableStatuses = ["PAID", "PREPARING", "SHIPPED", "DELIVERED"];
 const adminCancellableStatuses = new Set(["PAID", "PREPARING"]);
 const koreanDateFormatter = new Intl.DateTimeFormat("en-US", {
@@ -167,7 +167,7 @@ export const getAdminOrders = async (req, res, next) => {
     const searchType = ["orderNumber", "buyerName", "buyerEmail"].includes(req.query.searchType)
       ? req.query.searchType
       : "orderNumber";
-    const filter = {};
+    const filter = { abandonedAt: null, status: { $ne: "PAYMENT_PENDING" } };
     const status = String(req.query.status || "");
     const startDate = parseKoreanDate(req.query.startDate);
     const endDate = parseKoreanDate(req.query.endDate);

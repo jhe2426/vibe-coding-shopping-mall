@@ -127,7 +127,7 @@ export const getAdminDashboard = async (_req, res, next) => {
         .sort({ createdAt: -1 })
         .limit(20)
         .lean(),
-      Order.find()
+      Order.find({ abandonedAt: null, status: { $ne: "PAYMENT_PENDING" } })
         .populate("user", "name userId")
         .populate("items.product", "brand")
         .sort({ createdAt: -1 })

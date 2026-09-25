@@ -1,6 +1,7 @@
 import { Router } from "express";
 
 import {
+  abandonOrder,
   completeOrderPayment,
   cancelOrder,
   createOrder,
@@ -20,6 +21,7 @@ router.get("/", getOrders);
 router.post("/", createOrder);
 router.post("/payment-complete", completeOrderPayment);
 router.post("/:orderId/cancel", cancelOrder);
+router.post("/:orderId/abandon", abandonOrder);
 router.get("/:orderId", getOrder);
 router.patch("/:orderId", updateOrder);
 router.delete("/:orderId", deleteOrder);

@@ -7,6 +7,7 @@ import DeliveryAddressManagerModal from "../components/DeliveryAddressManagerMod
 import NavigationBar from "../components/NavigationBar.jsx";
 import SiteFooter from "../components/SiteFooter.jsx";
 import { buildAuthHeaders, getAuthToken } from "../utils/auth-storage.js";
+import { getVisibleOrders } from "../utils/visible-orders.js";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "/api";
 const formatPrice = (price) => `${Number(price || 0).toLocaleString("ko-KR")}원`;
@@ -72,7 +73,7 @@ function MyPage() {
 
         if (isMounted) {
           setProfile(user);
-          setOrders(Array.isArray(ordersData.orders) ? ordersData.orders : []);
+          setOrders(getVisibleOrders(ordersData.orders));
         }
       } catch (error) {
         if (isMounted) {
@@ -93,7 +94,7 @@ function MyPage() {
   }, []);
 
   const orderSummary = useMemo(() => ({
-    processing: orders.filter((order) => ["PAYMENT_PENDING", "PAID", "PREPARING"].includes(order.status)).length,
+    processing: orders.filter((order) => ["PAID", "PREPARING"].includes(order.status)).length,
     shipping: orders.filter((order) => order.status === "SHIPPED").length,
     completed: orders.filter((order) => order.status === "DELIVERED").length,
   }), [orders]);

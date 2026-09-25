@@ -183,6 +183,9 @@ const applyVerifiedPayment = async ({ order, impUid, merchantUid }) => {
       approvedAt,
     };
     order.statusHistory = [...(order.statusHistory || []), { status: "PAID", changedAt: approvedAt }];
+    // 결제창 종료 표시가 저장된 직후에도 결제 완료 결과가 우선합니다.
+    order.abandonedAt = null;
+    order.markModified("abandonedAt");
     await order.save();
     await order.populate("items.product");
     return order;
@@ -192,12 +195,13 @@ const applyVerifiedPayment = async ({ order, impUid, merchantUid }) => {
   }
 };
 
-// 고객용 주문 API는 역할과 무관하게 로그인한 사용자의 주문만 조회합니다.
+// 결제 전 주문은 실제 주문 내역에 포함하지 않습니다. 결제 웹훅이 확정하면 표시됩니다.
 export const getOrders = async (req, res, next) => {
   try {
-    const filter = { user: req.authUser.id };
+    const filter = { user: req.authUser.id, abandonedAt: null, status: { $ne: "PAYMENT_PENDING" } };
 
     if (req.query.status) {
+      if (req.query.status === "PAYMENT_PENDING") return res.json({ orders: [] });
       filter.status = req.query.status;
     }
 
@@ -270,6 +274,29 @@ export const createOrder = async (req, res, next) => {
 
     await order.populate("items.product");
     return res.status(201).json({ order });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// 결제창을 닫은 주문은 목록에서 숨기되, 늦게 도착한 결제 웹훅이 복구할 수 있도록 보관합니다.
+export const abandonOrder = async (req, res, next) => {
+  try {
+    const filter = { ...buildOrderFilter(req.params.orderId), user: req.authUser.id };
+    const order = await Order.findOneAndUpdate(
+      { ...filter, status: "PAYMENT_PENDING", abandonedAt: null },
+      { $set: { abandonedAt: new Date() } },
+      { new: true },
+    );
+
+    if (order) return res.status(204).send();
+
+    const existingOrder = await Order.findOne(filter).select("status abandonedAt");
+    if (!existingOrder) return res.status(404).json({ message: "주문을 찾을 수 없습니다." });
+    if (existingOrder.status !== "PAYMENT_PENDING") {
+      return res.status(409).json({ message: "이미 처리된 주문입니다. 주문 내역을 확인해주세요." });
+    }
+    return res.status(204).send();
   } catch (error) {
     return next(error);
   }

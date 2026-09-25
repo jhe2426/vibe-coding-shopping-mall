@@ -111,6 +111,7 @@ const orderSchema = new Schema(
     },
     payment: { type: paymentSchema, default: () => ({}) },
     statusHistory: { type: [orderStatusHistorySchema], default: [] },
+    abandonedAt: { type: Date, default: null },
     adminMemo: { type: String, default: "", trim: true, maxlength: 1000 },
     adminMemoUpdatedAt: { type: Date, default: null },
   },

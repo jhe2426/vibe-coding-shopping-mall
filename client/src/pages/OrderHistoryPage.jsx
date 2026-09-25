@@ -5,6 +5,7 @@ import { Link, Navigate, useNavigate } from "react-router-dom";
 import NavigationBar from "../components/NavigationBar.jsx";
 import SiteFooter from "../components/SiteFooter.jsx";
 import { buildAuthHeaders, getAuthToken } from "../utils/auth-storage.js";
+import { getVisibleOrders } from "../utils/visible-orders.js";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "/api";
 const formatPrice = (price) => `${Number(price || 0).toLocaleString("ko-KR")}원`;
@@ -50,7 +51,7 @@ const formatOrderDate = (value) => {
 
 const matchesTab = (order, tab) => {
   if (tab === "ALL") return true;
-  if (tab === "PROCESSING") return ["PAYMENT_PENDING", "PAID", "PREPARING"].includes(order.status);
+  if (tab === "PROCESSING") return ["PAID", "PREPARING"].includes(order.status);
   if (tab === "SHIPPING") return order.status === "SHIPPED";
   if (tab === "COMPLETED") return order.status === "DELIVERED";
   return order.status === "CANCELED";
@@ -97,7 +98,7 @@ function OrderHistoryPage() {
         }
 
         if (isMounted) {
-          setOrders(Array.isArray(ordersData.orders) ? ordersData.orders : []);
+          setOrders(getVisibleOrders(ordersData.orders));
           setReviewedItemKeys(new Set(
             (Array.isArray(reviewsData.reviews) ? reviewsData.reviews : []).map((review) => (
               getReviewKey(review.orderId, review.productId, review.size)
