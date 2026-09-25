@@ -14,6 +14,8 @@ const PRODUCTS_PER_PAGE = 8;
 const formatPrice = (price) => `${Number(price || 0).toLocaleString("ko-KR")} 원`;
 const getProductPathId = (product) => product.productId || product.id;
 const getDiscountRate = (product) => {
+  if (product.salePrice === null || product.salePrice === undefined) return null;
+
   const regularPrice = Number(product.regularPrice);
   const salePrice = Number(product.salePrice);
 
@@ -295,7 +297,7 @@ function MainPage() {
             {!isLoadingProducts && !productLoadError && products.slice(0, visibleProductCount).map((product) => {
               const productId = getProductLikeKey(product);
               const isLiked = likedProductIds.has(productId);
-              const discountRate = activeCatalog?.isSaleOnly ? getDiscountRate(product) : null;
+              const discountRate = getDiscountRate(product);
 
               return (
                 <article className="product-card" key={product.id}>
